@@ -211,6 +211,31 @@ class WorkoutPlannerTest {
         assertEquals("monday", ui.readWorkoutDay());
     }
 
+    @Test
+    void plannerCanUseAValidCustomExercise() {
+        Main.Profile profile = validProfile();
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Exercise customExercise = new Main.Exercise(
+                "Resistance Band Press", "Chest", "resistance band", "",
+                4, 12);
+
+        assertTrue(planner.addCustomExercise(customExercise));
+        profile.addEquipment("resistance band");
+        Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+
+        assertTrue(routine.containsExercise("Resistance Band Press"));
+    }
+
+    @Test
+    void plannerRejectsDuplicateCustomExercise() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Exercise customExercise = new Main.Exercise(
+                "My Press", "Chest", "none", "");
+
+        assertTrue(planner.addCustomExercise(customExercise));
+        assertFalse(planner.addCustomExercise(customExercise));
+    }
+
     private Main.Profile validProfile() {
         Main.Profile profile = new Main.Profile();
         profile.setFitnessGoal("Strength");

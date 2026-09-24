@@ -320,6 +320,7 @@ public class Main {
 			StringBuilder result = new StringBuilder();
 			String[] days = {"monday", "tuesday", "wednesday", "thursday",
 					"friday", "saturday", "sunday"};
+			StringBuilder restDays = new StringBuilder("Rest days: ");
 			for (String day : days) {
 				if (muscleGroups.containsKey(day)) {
 					result.append(capitalize(day)).append(": ")
@@ -331,9 +332,14 @@ public class Main {
 						result.append(" (routine not assigned)");
 					}
 					result.append("\n");
+				} else {
+					if (restDays.length() > "Rest days: ".length()) {
+						restDays.append(", ");
+					}
+					restDays.append(capitalize(day));
 				}
 			}
-			return result.toString().trim();
+			return result.append(restDays).toString().trim();
 		}
 
 		private String capitalize(String day) {
@@ -366,8 +372,13 @@ public class Main {
 				}
 			}
 
-			String equipment = readNonEmpty("Available equipment (or none): ");
-			profile.addEquipment(equipment);
+			String equipment = readNonEmpty(
+					"Available equipment, separated by commas (or none): ");
+			for (String item : equipment.split(",")) {
+				if (!item.trim().equalsIgnoreCase("none")) {
+					profile.addEquipment(item);
+				}
+			}
 			String muscleGroup = readNonEmpty("Muscle group for this plan: ");
 			if (profile.getFitnessGoal() == null) {
 				System.out.println("Please assign a fitness goal first.");
@@ -375,6 +386,20 @@ public class Main {
 			}
 
 			WorkoutPlanner planner = new WorkoutPlanner();
+			String customName = readOptional(
+					"Custom exercise name (press Enter to skip): ");
+			if (!customName.isEmpty()) {
+				String customGroup = readNonEmpty("Custom exercise muscle group: ");
+				String customEquipment = readNonEmpty(
+						"Custom exercise equipment (or none): ");
+				String customLimitation = readOptional(
+						"Custom exercise limitation (or press Enter for none): ");
+				int customSets = readPositiveInt("Custom exercise sets: ");
+				int customReps = readPositiveInt("Custom exercise reps: ");
+				planner.addCustomExercise(new Exercise(customName, customGroup,
+						customEquipment, customLimitation, customSets, customReps));
+			}
+
 			WorkoutSchedule schedule = new WorkoutSchedule();
 			for (String day : new String[] {"monday", "tuesday", "wednesday", "thursday",
 					"friday", "saturday", "sunday"}) {
@@ -426,6 +451,11 @@ public class Main {
 				}
 				System.out.println("Please enter a value.");
 			}
+		}
+
+		private String readOptional(String prompt) {
+			System.out.print(prompt);
+			return scanner.nextLine().trim();
 		}
 
 		private int readPositiveInt(String prompt) {
@@ -495,6 +525,19 @@ public class Main {
 					"Pull Ups", "Back", "none", "shoulder"));
 			exerciseDatabase.add(new Exercise(
 					"Barbell Row", "Back", "barbell", "lower back"));
+		}
+
+		public boolean addCustomExercise(Exercise exercise) {
+			if (exercise == null || exercise.getName() == null
+					|| exercise.getName().trim().isEmpty()) {
+				return false;
+			}
+			for (Exercise existing : exerciseDatabase) {
+				if (existing.getName().equalsIgnoreCase(exercise.getName().trim())) {
+					return false;
+				}
+			}
+			return exerciseDatabase.add(exercise);
 		}
 
 		public WorkoutRoutine generateWorkout(Profile profile,
