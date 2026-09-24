@@ -247,6 +247,17 @@ class WorkoutPlannerTest {
         assertTrue(profile.hasExercisePreference("push ups"));
     }
 
+    @Test
+    void preferredExerciseIsGeneratedFirst() {
+        Main.Profile profile = validProfile();
+        profile.addExercisePreference("Push Ups");
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+
+        Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+
+        assertEquals("Push Ups", routine.getExercises().get(0).getName());
+    }
+
     private Main.Profile validProfile() {
         Main.Profile profile = new Main.Profile();
         profile.setFitnessGoal("Strength");

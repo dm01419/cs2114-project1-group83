@@ -630,14 +630,18 @@ public class Main {
 			WorkoutRoutine routine =
 					new WorkoutRoutine(muscleGroup + " Workout");
 
-			for (Exercise exercise : exerciseDatabase) {
-				if (exercise.getMuscleGroup().equalsIgnoreCase(muscleGroup)
-						&& isExerciseValid(exercise, profile)) {
-					addExercise(routine, exercise, profile);
+			for (int preferencePass = 0; preferencePass < 2; preferencePass++) {
+				for (Exercise exercise : exerciseDatabase) {
+					boolean preferred = profile.hasExercisePreference(exercise.getName());
+					if (exercise.getMuscleGroup().equalsIgnoreCase(muscleGroup)
+							&& preferred == (preferencePass == 0)
+							&& isExerciseValid(exercise, profile)) {
+						addExercise(routine, exercise, profile);
 
-					if (routine.getNumberOfExercises()
-							>= recommendedExerciseCount(profile)) {
-						break;
+						if (routine.getNumberOfExercises()
+								>= recommendedExerciseCount(profile)) {
+							return routine;
+						}
 					}
 				}
 			}
