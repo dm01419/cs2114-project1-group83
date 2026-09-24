@@ -14,7 +14,6 @@ public class Main {
 		new ConsoleUI().start();
 	}
 
-	// ponytail: fixed demo presets; add experience/load progression when those inputs exist.
 	enum FitnessGoal {
 		STRENGTH("Strength", 3, 6, 180, "barbell"),
 		MUSCLE_GAIN("Muscle Gain", 3, 10, 120, "dumbbells"),
@@ -327,6 +326,10 @@ public class Main {
 		}
 
 		long estimatedSeconds() {
+			return estimatedSeconds(exercises);
+		}
+
+		private static long estimatedSeconds(List<Exercise> exercises) {
 			if (exercises.isEmpty()) return 0;
 			long sets = exercises.stream().mapToLong(Exercise::getSets).sum();
 			return 300 + sets * 210 + Math.max(0, exercises.size() - 1) * 60L;
@@ -950,7 +953,6 @@ public class Main {
 			}
 			candidates = new ArrayList<>(unique.values());
 			candidates.sort(Comparator.comparing(e -> !profile.hasExercisePreference(e.name)));
-			// ponytail: catalog-name heuristic; explicit movement metadata when the catalog grows.
 			candidates.subList(0, Math.min(8, candidates.size())).sort(Comparator.comparing((Exercise e) -> isIsolation(e))
 					.thenComparing(e -> !profile.hasExercisePreference(e.name)));
 			WorkoutRoutine result = new WorkoutRoutine(split + " Workout - Muscle Gain (90-minute template;"
@@ -1022,7 +1024,6 @@ public class Main {
 				return routine;
 			}
 			List<Exercise> candidates = new ArrayList<>(exerciseDatabase);
-			// ponytail: equipment-based ordering; add exercise-specific priorities as the catalog grows.
 			candidates.sort(Comparator
 					.comparing((Exercise e) -> !profile.hasExercisePreference(e.getName()))
 					.thenComparing(e -> !goal.preferredEquipment.equalsIgnoreCase(e.getEquipment())));
@@ -1076,13 +1077,7 @@ public class Main {
 			proposed.remove(replaced);
 			proposed.add(added);
 
-			long sets = 0;
-			for (Exercise exercise : proposed) {
-				sets += exercise.sets;
-			}
-			// ponytail: fixed set/rest and transition estimates; use live timing if needed.
-			return 300 + sets * 210 + Math.max(0, proposed.size() - 1) * 60L
-					<= (long) profile.getWorkoutDuration() * 60;
+			return WorkoutRoutine.estimatedSeconds(proposed) <= (long) profile.getWorkoutDuration() * 60;
 		}
 
 		public boolean removeExercise(WorkoutRoutine routine,

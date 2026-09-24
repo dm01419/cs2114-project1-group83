@@ -785,6 +785,49 @@ class WorkoutPlannerTest {
         assertFalse(planner.generateSchedule(profile).getRoutine("Monday").containsExercise("Push Ups"));
     }
 
+    @Test
+    void displayedEstimateMatchesAdditionAndReplacementBoundaries() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Profile profile = validProfile();
+        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Boundary");
+        Main.Exercise first = new Main.Exercise("First", "Chest", "none", "", 1, 10);
+        Main.Exercise second = new Main.Exercise("Second", "Chest", "none", "", 1, 10);
+        assertEquals(0, routine.estimatedSeconds());
+        profile.setWorkoutDuration(12);
+        assertTrue(planner.addExercise(routine, first, profile));
+        assertEquals(510, routine.estimatedSeconds());
+        assertFalse(planner.addExercise(routine, second, profile));
+        assertEquals(1, routine.getNumberOfExercises());
+        profile.setWorkoutDuration(13);
+        assertTrue(planner.addExercise(routine, second, profile));
+        assertEquals(780, routine.estimatedSeconds());
+        assertTrue(routine.toString().contains("Estimated session time: 13.0 min"));
+        Main.Exercise replacement = new Main.Exercise("Replacement", "Chest", "none", "", 1, 10);
+        assertTrue(planner.changeExercise(routine, "Second", replacement, profile));
+        assertEquals(780, routine.estimatedSeconds());
+        assertFalse(planner.changeExercise(routine, "Replacement",
+                new Main.Exercise("Too Long", "Chest", "none", "", 2, 10), profile));
+        assertEquals(replacement, routine.getExercise("Replacement"));
+        assertEquals(780, routine.estimatedSeconds());
+        assertTrue(planner.removeExercise(routine, "First"));
+        assertEquals(510, routine.estimatedSeconds());
+        assertTrue(planner.removeExercise(routine, "Replacement"));
+        assertEquals(0, routine.estimatedSeconds());
+    }
+
+    @Test
+    void largeSetCountsDoNotOverflowTimeBudget() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Profile profile = validProfile();
+        profile.setWorkoutDuration(Integer.MAX_VALUE);
+        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Large values");
+        Main.Exercise exercise = new Main.Exercise("Large", "Chest", "none", "", Integer.MAX_VALUE, 10);
+        assertFalse(planner.addExercise(routine, exercise, profile));
+        assertTrue(planner.addManualExercise(routine, exercise, profile));
+        assertEquals(300L + Integer.MAX_VALUE * 210L, routine.estimatedSeconds());
+        assertTrue(routine.estimatedSeconds() > Integer.MAX_VALUE * 60L);
+    }
+
     private Main.Profile validProfile() {
         Main.Profile profile = new Main.Profile();
         profile.setFitnessGoal("Strength");
