@@ -4,6 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
+
 import org.junit.jupiter.api.Test;
 
 class WorkoutPlannerTest {
@@ -178,6 +182,33 @@ class WorkoutPlannerTest {
         assertTrue(schedule.removeWorkoutDay("Monday"));
         assertFalse(schedule.isWorkoutDay("Monday"));
         assertNull(schedule.getRoutine("Monday"));
+    }
+
+    @Test
+    void exerciseStoresSetsAndReps() {
+        Main.Exercise exercise = new Main.Exercise(
+                "Bench Press", "Chest", "barbell", "shoulder", 4, 8);
+
+        assertEquals(4, exercise.getSets());
+        assertEquals(8, exercise.getReps());
+    }
+
+    @Test
+    void consoleUiRepromptsForInvalidWorkoutDayCount() {
+        Scanner input = new Scanner(new ByteArrayInputStream(
+                "four\n0\n3\n".getBytes(StandardCharsets.UTF_8)));
+        Main.ConsoleUI ui = new Main.ConsoleUI(input);
+
+        assertEquals(3, ui.readWorkoutDays());
+    }
+
+    @Test
+    void consoleUiRepromptsForInvalidDay() {
+        Scanner input = new Scanner(new ByteArrayInputStream(
+                "Funday\nMonday\n".getBytes(StandardCharsets.UTF_8)));
+        Main.ConsoleUI ui = new Main.ConsoleUI(input);
+
+        assertEquals("monday", ui.readWorkoutDay());
     }
 
     private Main.Profile validProfile() {
