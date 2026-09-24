@@ -71,16 +71,7 @@ These are demo presets, not individualized training prescriptions. Goal-specific
 
 Your preferred exercise takes priority over the default ordering. Equipment and recorded limitations still filter every recommendation. Custom exercises and manual edits keep the sets and reps you enter. Weight Loss provides a resistance-training component, not a calorie-burn or weight-loss prediction.
 
-Total working-set targets now depend on session duration:
-
-| Session duration | Working sets |
-| --- | --- |
-| 30–44 minutes | 8–10 |
-| 45–59 minutes | 12–15 |
-| 60–89 minutes | 16–18 |
-| 90+ minutes | 20–24 |
-
-These ranges apply to generation and edit limits for all goals. Intermediate durations use the lower time band; sessions below 30 minutes use a reduced allowance. The upper bound is enforced, while equipment, injury restrictions, or estimated session time can prevent reaching the lower bound. Warm-up sets are not included. The planner uses at most eight exercises and displays both the target range and actual total. Recovery days have no working-set target.
+Sessions are generated from the available time: five minutes for warm-up, 3.5 minutes per working set including rest, and one minute between exercises. There is no fixed total-set guideline. Exercise availability and injury filters may leave unused time. Entering `1` workout day immediately displays “Only one day? Is that all you've got?”; entering `7` displays “You need some rest. I'm going to add a recovery day.” The seventh day is Recovery.
 
 ## Run the tests
 
@@ -98,7 +89,7 @@ mvn test
 
 ## 90-minute Muscle Gain sessions
 
-Select `Muscle Gain` and 90 minutes or more for an intermediate-style template. No RIR is displayed. Upper, Push, and Pull sessions prioritize main lifts, assistance exercises, then isolation work. With enough matching equipment, eight exercises use 3 sets for the first four and 2 sets for the remaining four: **20 working sets**. Main compounds use 6–10 reps, other compounds 8–12, and isolation exercises 12–20. Rest is 150 seconds for compounds and 75 seconds for isolation work.
+Select `Muscle Gain` and 90 minutes or more for an intermediate-style template. No RIR is displayed. Upper, Push, and Pull sessions prioritize main lifts, assistance exercises, then isolation work. The main template prioritizes eight exercises, using 3 sets for the first four and 2 sets for later exercises. Additional eligible exercises can be included if time remains; sets are reduced if needed to fit. Main compounds use 6–10 reps, other compounds 8–12, and isolation exercises 12–20. Rest is 150 seconds for compounds and 75 seconds for isolation work.
 
 For an Upper session, enter two or four weekly workout days and equipment `barbell, dumbbells, bench, cable machine`. The template includes bench press, lat pulldown (or pull-ups if a bar is available), incline dumbbell press, chest-supported row, lateral raise, rear delt raise, triceps pushdown, and incline curl. Templates fall back to eligible catalog exercises when equipment is missing. Injury restrictions may reduce the exercise/set total; the program does not add incompatible exercises to reach a quota. Custom sets remain unchanged. This is a planning template, not a measured 90-minute session.
 
@@ -106,4 +97,4 @@ For an Upper session, enter two or four weekly workout days and equipment `barbe
 
 Each exercise displays a target-muscle mix totaling 100%, for example `Chest 60%, Triceps 25%, Shoulders 15%` for bench press. These are illustrative app classification weights, not measured muscle activation. Built-in exercises use named muscle groups; unknown custom exercises default to 100% of their declared group. Percentages are shown again after viewing or editing a routine.
 
-Adding or replacing an exercise must fit both the session set limit and estimated time budget. Estimated session time is five minutes of warm-up plus 3.5 minutes per working set (including rest), plus one minute between exercises. Displayed rest recommendations are not added again. For example, 20 sets across eight exercises take about 82 minutes. Short sessions may fall below the target set range once overhead is included. Generated exercises can have their final sets reduced to fit; manual/custom sets are not silently changed. Session set limits follow the duration table above, including up to 24 working sets at 90 minutes. Custom sets are preserved only when they fit these limits. Recovery days cannot be edited. Replacing an exercise with the same name can update its sets/reps; rejected replacements leave the original intact. Ending terminal input closes the console cleanly.
+Automatic generation and exercise replacement enforce the estimated time budget. In the edit menu, adding a custom exercise is allowed to exceed that budget: the exercise stays in the routine and a warning shows the estimated duration. Equipment, injuries, valid inputs, duplicate names, and recovery-day restrictions still apply. Displayed rest recommendations are included in the 3.5-minute estimate, not added again. Manual/custom sets are not silently changed. Rejected replacements leave the original intact. Ending terminal input closes the console cleanly.

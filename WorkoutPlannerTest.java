@@ -455,7 +455,7 @@ class WorkoutPlannerTest {
     }
 
     @Test
-    void ninetyMinuteHypertrophyUpperHasTwentySetsAndSeparateRestTimes() {
+    void ninetyMinuteHypertrophyUpperUsesTimeBudgetAndSeparateRestTimes() {
         Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
         Main.Profile profile = validProfile();
         profile.setFitnessGoal("Muscle Gain");
@@ -465,8 +465,8 @@ class WorkoutPlannerTest {
         profile.addEquipment("bench");
         profile.addEquipment("cable machine");
         Main.WorkoutRoutine routine = planner.generateSchedule(profile).getRoutine("Monday");
-        assertEquals(8, routine.getNumberOfExercises());
-        assertEquals(20, routine.getExercises().stream().mapToInt(Main.Exercise::getSets).sum());
+        assertEquals(9, routine.getNumberOfExercises());
+        assertEquals(22, routine.getExercises().stream().mapToInt(Main.Exercise::getSets).sum());
         assertEquals("Barbell Bench Press", routine.getExercises().get(0).getName());
         assertEquals("Lat Pulldown", routine.getExercises().get(1).getName());
         assertTrue(routine.containsExercise("Triceps Pushdown"));
@@ -569,32 +569,6 @@ class WorkoutPlannerTest {
     }
 
     @Test
-    void durationTargetsApplyToEveryGoalAndEdits() {
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        int[] minutes = {30, 45, 60, 90};
-        int[] upper = {10, 15, 18, 24};
-        for (String goal : new String[] {"Strength", "Muscle Gain", "Endurance", "Weight Loss"}) {
-            for (int index = 0; index < minutes.length; index++) {
-                Main.Profile profile = validProfile();
-                profile.setFitnessGoal(goal);
-                profile.setWorkoutDuration(minutes[index]);
-                profile.addPreferredWorkoutDay("Monday");
-                Main.WorkoutRoutine routine = planner.generateSchedule(profile).getRoutine("Monday");
-                int total = routine.getExercises().stream().mapToInt(Main.Exercise::getSets).sum();
-                assertTrue(total > 0 && total <= upper[index], goal + " " + minutes[index] + ": " + total);
-                assertTrue(300 + total * 210 + Math.max(0, routine.getNumberOfExercises() - 1) * 60 <= minutes[index] * 60);
-                Main.WorkoutRoutine empty = new Main.WorkoutRoutine("Limit test");
-                assertFalse(planner.addExercise(empty,
-                        new Main.Exercise("Too many", "Chest", "none", "", upper[index] + 1, 1), profile));
-            }
-        }
-        assertEquals(10, Main.workingSetRange(44)[1]);
-        assertEquals(15, Main.workingSetRange(59)[1]);
-        assertEquals(18, Main.workingSetRange(89)[1]);
-        assertEquals(24, Main.workingSetRange(120)[1]);
-    }
-
-    @Test
     void timeBudgetIncludesWarmupSetRestAndTransitions() {
         Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
         Main.Profile profile = validProfile();
@@ -677,7 +651,6 @@ class WorkoutPlannerTest {
                             Main.WorkoutRoutine routine = schedule.getRoutine(scheduled);
                             if (routine == null) continue;
                             long sets = routine.getExercises().stream().mapToLong(Main.Exercise::getSets).sum();
-                            assertTrue(sets <= Main.workingSetRange(minutes)[1]);
                             if (sets > 0) {
                                 assertTrue(300 + sets * 210 + (routine.getNumberOfExercises() - 1) * 60L <= (long) minutes * 60);
                             }
@@ -693,16 +666,34 @@ class WorkoutPlannerTest {
     }
 
     @Test
-    void shortSessionExplainsWhyGuidelineDoesNotFit() {
+    void manualAdditionExceedsTimeButRetainsSafetyChecks() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Profile profile = validProfile();
+        profile.setWorkoutDuration(30);
+        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Manual");
+        Main.Exercise custom = new Main.Exercise("Custom", "Chest", "none", "", 10, 10);
+        assertTrue(planner.addManualExercise(routine, custom, profile));
+        assertTrue(routine.estimatedSeconds() > 30 * 60);
+        assertFalse(planner.addManualExercise(routine, custom, profile));
+        profile.addLimit("shoulder");
+        assertFalse(planner.addManualExercise(routine, new Main.Exercise("Push Ups", "Chest", "none", ""), profile));
+    }
+
+    @Test
+    void consoleWarnsAfterKeepingOverBudgetAdditionAndRespondsImmediatelyToDayCount() {
         PrintStream original = System.out;
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
-            new Main.ConsoleUI(new Scanner("Strength\n30\n1\nMonday\nbarbell, dumbbells\n\n\n\n\n")).start();
+            new Main.ConsoleUI(new Scanner("Strength\n30\n1\nMonday\nnone\n\n\n\nedit\nMonday\nadd\nCustom\nChest\nnone\n\n10\n10\n\n")).start();
             String text = output.toString(StandardCharsets.UTF_8);
-            assertTrue(text.contains("Time-adjusted maximum is 6 working sets"));
-            assertTrue(text.contains("the 8-10 guideline does not fit this session"));
-            assertTrue(text.contains("Estimated session time: 27.0 min"));
+            assertTrue(text.indexOf("Only one day?") < text.indexOf("Workout day 1"));
+            assertTrue(text.contains("Warning: exercise kept"));
+            assertTrue(text.contains("- Custom"));
+            assertFalse(text.contains("guideline"));
+            output.reset();
+            assertEquals(7, new Main.ConsoleUI(new Scanner("7\n")).readWorkoutDays());
+            assertTrue(output.toString(StandardCharsets.UTF_8).contains("You need some rest. I'm going to add a recovery day."));
         } finally {
             System.setOut(original);
         }

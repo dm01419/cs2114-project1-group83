@@ -59,14 +59,6 @@ public class Main {
 		};
 	}
 
-	static int[] workingSetRange(int minutes) {
-		if (minutes >= 90) return new int[] {20, 24};
-		if (minutes >= 60) return new int[] {16, 18};
-		if (minutes >= 45) return new int[] {12, 15};
-		if (minutes >= 30) return new int[] {8, 10};
-		return new int[] {0, Math.max(0, minutes - 5) / 3};
-	}
-
 	static class Profile {
 		private String fitnessGoal;
 		private int workoutDuration;
@@ -331,6 +323,12 @@ public class Main {
 			return new ArrayList<>(exercises);
 		}
 
+		long estimatedSeconds() {
+			if (exercises.isEmpty()) return 0;
+			long sets = exercises.stream().mapToLong(Exercise::getSets).sum();
+			return 300 + sets * 210 + Math.max(0, exercises.size() - 1) * 60L;
+		}
+
 		@Override
 		public String toString() {
 			StringBuilder result = new StringBuilder(name).append("\n");
@@ -364,11 +362,11 @@ public class Main {
 				result.append(String.join(", ", targets)).append("\n");
 			}
 
-			int totalSets = exercises.stream().mapToInt(Exercise::getSets).sum();
+			long totalSets = exercises.stream().mapToLong(Exercise::getSets).sum();
 			return result.append("Total: ").append(exercises.size()).append(" exercises, ")
 					.append(totalSets).append(" working sets\n")
 					.append("Estimated session time: ")
-					.append((300 + totalSets * 210L + Math.max(0, exercises.size() - 1) * 60L) / 60.0)
+					.append(estimatedSeconds() / 60.0)
 					.append(" min (warm-up and transitions included)\n").toString();
 		}
 	}
@@ -545,9 +543,6 @@ public class Main {
 			}
 			System.out.println("Split is automatic: 1 day Full Body; 2 Upper/Lower; 3 Push/Pull/Legs;");
 			System.out.println("4 Upper/Lower twice; 5 body-part split; 6 Push/Pull/Legs twice; 7 adds recovery.");
-			if (workoutDays == 1) {
-				System.out.println("Come on, let's make this full-body workout count!");
-			}
 
 			if (profile.getFitnessGoal() == null) {
 				System.out.println("Please assign a fitness goal first.");
@@ -586,12 +581,14 @@ public class Main {
 		}
 
 		public int readWorkoutDays() {
-			return readNumberInRange("Number of workout days per week (1-7, e.g. 3): ", 1, 7);
+			int days = readNumberInRange("Number of workout days per week (1-7, e.g. 3): ", 1, 7);
+			if (days == 1) System.out.println("Only one day? Is that all you've got?");
+			if (days == 7) System.out.println("You need some rest. I'm going to add a recovery day.");
+			return days;
 		}
 
 		public int readWorkoutDuration() {
 			System.out.println("Duration is a per-session time budget, not a promise to fill the entire time.");
-			System.out.println("Volume guidelines before time limits: 30 min 8-10; 45 min 12-15; 60 min 16-18; 90 min 20-24.");
 			System.out.println("Each exercise has its own sets and reps. Equipment, injuries, and available exercises may reduce the count.");
 			return readPositiveInt("Time available per workout in minutes (e.g. 30, 60, 90): ");
 		}
@@ -615,8 +612,6 @@ public class Main {
 		private void displayPlan(WorkoutSchedule schedule, Profile profile) {
 			System.out.println("\nCurrent plan");
 			System.out.println("Fitness goal: " + profile.getFitnessGoal());
-			int[] target = workingSetRange(profile.getWorkoutDuration());
-			System.out.println("Volume guideline before time limits (not guaranteed): " + target[0] + "-" + target[1]);
 			System.out.println("Estimated time: 5 min warm-up + 3.5 min per working set (including rest) + 1 min between exercises.");
 			System.out.println("Duration budget: " + profile.getWorkoutDuration()
 					+ " min (includes 5 min warm-up allowance; exercise times are estimates)");
@@ -626,18 +621,6 @@ public class Main {
 			System.out.println("Limitations or injuries: " + (profile.limitations.isEmpty()
 					? "None" : String.join(", ", profile.limitations)));
 			displaySchedule(schedule);
-			for (Map.Entry<String, WorkoutRoutine> entry : schedule.routines.entrySet()) {
-				WorkoutRoutine routine = entry.getValue();
-				if (routine.recovery || routine.exercises.isEmpty()) continue;
-				long availableSeconds = (long) profile.getWorkoutDuration() * 60 - 300
-						- Math.max(0, routine.exercises.size() - 1) * 60L;
-				long timeLimit = Math.max(0, availableSeconds / 210);
-				if (timeLimit < target[0]) {
-					System.out.println(entry.getKey() + ": Time-adjusted maximum is " + timeLimit
-							+ " working sets for " + routine.exercises.size()
-							+ " exercises; the " + target[0] + "-" + target[1] + " guideline does not fit this session.");
-				}
-			}
 		}
 
 		private void editRoutineMenu(WorkoutSchedule schedule,
@@ -665,11 +648,16 @@ public class Main {
 							"Choose action: add, remove, or change: ");
 					if (action.equalsIgnoreCase("add")) {
 						Exercise exercise = readExercise();
-						if (!planner.addExercise(routine, exercise, profile)) {
+						if (!planner.addManualExercise(routine, exercise, profile)) {
 							System.out.println("Exercise cannot be added. Check equipment, "
-									+ "limitations, or the time/set budget.");
+									+ "limitations, or duplicate/invalid exercise details.");
 						} else {
 							System.out.println("Exercise added.");
+							if (routine.estimatedSeconds() > (long) profile.getWorkoutDuration() * 60) {
+								System.out.println("Warning: exercise kept, but the routine now takes about "
+										+ routine.estimatedSeconds() / 60.0 + " min, exceeding your "
+										+ profile.getWorkoutDuration() + " min budget.");
+							}
 						}
 					} else if (action.equalsIgnoreCase("remove")) {
 						String exerciseName = readNonEmpty("Exercise to remove: ");
@@ -686,7 +674,7 @@ public class Main {
 							System.out.println("Exercise changed.");
 						} else {
 							System.out.println("Exercise cannot be changed. Check equipment, "
-									+ "limitations, duplicate names, or the time/set budget.");
+									+ "limitations, duplicate names, or the time budget.");
 						}
 					} else {
 						System.out.println("Choose add, remove, or change.");
@@ -958,16 +946,13 @@ public class Main {
 			}
 			candidates = new ArrayList<>(unique.values());
 			candidates.sort(Comparator.comparing(e -> !profile.hasExercisePreference(e.name)));
-			if (candidates.size() > 8) {
-				candidates.subList(8, candidates.size()).clear();
-			}
 			// ponytail: catalog-name heuristic; explicit movement metadata when the catalog grows.
-			candidates.sort(Comparator.comparing((Exercise e) -> isIsolation(e))
+			candidates.subList(0, Math.min(8, candidates.size())).sort(Comparator.comparing((Exercise e) -> isIsolation(e))
 					.thenComparing(e -> !profile.hasExercisePreference(e.name)));
 			WorkoutRoutine result = new WorkoutRoutine(split + " Workout - Muscle Gain (90-minute template;"
 					+ " fewer exercises if equipment or limitations restrict the plan)");
 			for (Exercise exercise : candidates) {
-				if (result.containsExercise(exercise.name) || result.getNumberOfExercises() >= 8) {
+				if (result.containsExercise(exercise.name) || result.getNumberOfExercises() >= recommendedExerciseCount(profile)) {
 					continue;
 				}
 				boolean custom = exerciseDatabase.stream().anyMatch(e -> e.name.equals(exercise.name) && !e.goalBased);
@@ -1062,6 +1047,11 @@ public class Main {
 			}
 		}
 
+		public boolean addManualExercise(WorkoutRoutine routine, Exercise exercise, Profile profile) {
+			return routine != null && !routine.recovery && isExerciseValid(exercise, profile)
+					&& routine.addExercise(exercise);
+		}
+
 		public boolean addExercise(WorkoutRoutine routine, Exercise exercise, Profile profile) {
 			return routine != null && !routine.recovery && isExerciseValid(exercise, profile)
 					&& fitsBudget(routine, null, exercise, profile) && routine.addExercise(exercise);
@@ -1071,21 +1061,13 @@ public class Main {
 			List<Exercise> proposed = routine.getExercises();
 			proposed.remove(replaced);
 			proposed.add(added);
-			int countLimit = recommendedExerciseCount(profile);
-			if (proposed.size() > countLimit) {
-				return false;
-			}
-			FitnessGoal goal = FitnessGoal.parse(profile.getFitnessGoal());
-			if (goal == null) {
-				return false;
-			}
-			int setLimit = workingSetRange(profile.getWorkoutDuration())[1];
+
 			long sets = 0;
 			for (Exercise exercise : proposed) {
 				sets += exercise.sets;
 			}
 			// ponytail: fixed set/rest and transition estimates; use live timing if needed.
-			return sets <= setLimit && 300 + sets * 210 + Math.max(0, proposed.size() - 1) * 60L
+			return 300 + sets * 210 + Math.max(0, proposed.size() - 1) * 60L
 					<= (long) profile.getWorkoutDuration() * 60;
 		}
 
@@ -1148,17 +1130,9 @@ public class Main {
 		}
 
 		private int recommendedExerciseCount(Profile profile) {
-			if (profile == null) {
-				return 0;
-			}
-			FitnessGoal goal = FitnessGoal.parse(profile.getFitnessGoal());
-			if (goal == null) {
-				return 0;
-			}
-			if (goal == FitnessGoal.MUSCLE_GAIN && profile.getWorkoutDuration() >= 90) return 8;
-			int upper = workingSetRange(profile.getWorkoutDuration())[1];
-			int sets = recommendedSets(profile);
-			return Math.min(8, (upper + sets - 1) / sets);
+			if (profile == null || profile.getFitnessGoal() == null) return 0;
+			return (int) Math.min(exerciseDatabase.size(), Math.max(0L,
+					((long) profile.getWorkoutDuration() * 60 - 300) / 210));
 		}
 	}
 }
