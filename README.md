@@ -43,7 +43,8 @@ Maven downloads JUnit 5 and build plugins on the first run.
 
 ## Implemented features
 
-- Goals: Strength, Muscle Gain, Endurance, and Weight Loss, with different sets, reps, and ordering.
+- Goals: Strength, Muscle Gain, Endurance, Weight Loss, and General Fitness, with different sets, reps, and ordering.
+- General Fitness uses up to 3 sets of 10 reps, displays 90 seconds of rest, and has no equipment-type preference. Selected workout days and the existing weekly splits are preserved.
 - Automatic splits: one day Full Body; two/four days Upper/Lower; three/six days Push/Pull/Legs; five days a body-part split; seven days adds Recovery.
 - 52 built-in exercises covering Chest, Back, Legs, Shoulders, and Arms, plus custom exercises.
 - Custom arm exercises can specify `Biceps` or `Triceps` for Push/Pull splits; generic `Arms` exercises remain in Arms and Full Body/Upper routines.

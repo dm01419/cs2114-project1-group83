@@ -292,11 +292,11 @@ class WorkoutPlannerTest {
     @Test
     void goalsChangePrescriptionsOrderAndTimeBudgetWithoutChangingCustomExercises() {
         Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        String[] goals = {"Strength", "Muscle Gain", "Endurance", "Weight Loss"};
-        int[] sets = {3, 3, 2, 3};
-        int[] reps = {6, 10, 16, 12};
-        int[] rest = {180, 120, 60, 90};
-        String[] first = {"Barbell Bench Press", "Dumbbell Bench Press", "Push Ups", "Push Ups"};
+        String[] goals = {"Strength", "Muscle Gain", "Endurance", "Weight Loss", "General Fitness"};
+        int[] sets = {3, 3, 2, 3, 3};
+        int[] reps = {6, 10, 16, 12, 10};
+        int[] rest = {180, 120, 60, 90, 90};
+        String[] first = {"Barbell Bench Press", "Dumbbell Bench Press", "Push Ups", "Push Ups", "Barbell Bench Press"};
         Main.Exercise custom = new Main.Exercise("Custom Press", "Chest", "none", "", 4, 8);
         planner.addCustomExercise(custom);
         for (int index = 0; index < goals.length; index++) {
@@ -632,7 +632,7 @@ class WorkoutPlannerTest {
     void scheduleBoundaryMatrixStaysWithinTimeAndSetLimits() {
         Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
         String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
-        for (String goal : new String[] {"Strength", "Muscle Gain", "Endurance", "Weight Loss"}) {
+        for (String goal : new String[] {"Strength", "Muscle Gain", "Endurance", "Weight Loss", "General Fitness"}) {
             for (int minutes : new int[] {1, 5, 9, 29, 30, 44, 45, 59, 60, 75, 89, 90, Integer.MAX_VALUE}) {
                 for (boolean restricted : new boolean[] {false, true}) {
                     Main.Profile profile = validProfile();
@@ -826,6 +826,94 @@ class WorkoutPlannerTest {
         assertTrue(planner.addManualExercise(routine, exercise, profile));
         assertEquals(300L + Integer.MAX_VALUE * 210L, routine.estimatedSeconds());
         assertTrue(routine.estimatedSeconds() > Integer.MAX_VALUE * 60L);
+    }
+
+    @Test
+    void generalFitnessKeepsSelectedDaysAndThreeSetPrescription() {
+        Main.Profile profile = validProfile();
+        profile.setFitnessGoal(" GENERAL_FITNESS ");
+        profile.setWorkoutDuration(90);
+        profile.addPreferredWorkoutDay("Tuesday");
+        profile.addPreferredWorkoutDay("Friday");
+        Main.WorkoutSchedule schedule = new Main.WorkoutPlanner().generateSchedule(profile);
+        assertEquals("General Fitness", profile.getFitnessGoal());
+        assertNotNull(schedule.getRoutine("Tuesday"));
+        assertNotNull(schedule.getRoutine("Friday"));
+        for (String day : new String[] {"Monday", "Wednesday", "Thursday", "Saturday", "Sunday"}) {
+            assertNull(schedule.getRoutine(day));
+        }
+        Main.Exercise first = schedule.getRoutine("Tuesday").getExercises().get(0);
+        assertEquals(3, first.getSets());
+        assertEquals(10, first.getReps());
+        assertEquals("General Fitness", new Main.ConsoleUI(
+                new Scanner("general fitness\n")).readFitnessGoal());
+    }
+
+    @Test
+    void goalInputsAcceptAliasesAndClearInvalidValues() {
+        Main.Profile profile = validProfile();
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        for (String input : new String[] {"General Fitness", " general fitness ", "GENERAL_FITNESS"}) {
+            profile.setFitnessGoal(input);
+            assertEquals("General Fitness", profile.getFitnessGoal());
+            assertNotNull(planner.generateWorkout(profile, "Chest"));
+        }
+        for (String input : new String[] {null, "", "   ", "General", "GENERAL__FITNESS"}) {
+            profile.setFitnessGoal("General Fitness");
+            profile.setFitnessGoal(input);
+            assertNull(profile.getFitnessGoal());
+            assertNull(planner.generateWorkout(profile, "Chest"));
+        }
+        profile.setFitnessGoal("Endurance");
+        assertEquals(16, planner.generateWorkout(profile, "Chest").getExercises().get(0).getReps());
+    }
+
+    @Test
+    void generalFitnessHandlesMinimumAndLongDurationBoundaries() {
+        Main.Profile profile = validProfile();
+        profile.setFitnessGoal("General Fitness");
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        for (int minutes : new int[] {Integer.MIN_VALUE, -1, 0}) {
+            profile.setWorkoutDuration(minutes);
+            assertNull(planner.generateWorkout(profile, "Chest"));
+        }
+        profile.setWorkoutDuration(8);
+        assertEquals(0, planner.generateWorkout(profile, "Chest").getNumberOfExercises());
+        profile.setWorkoutDuration(9);
+        Main.WorkoutRoutine shortRoutine = planner.generateWorkout(profile, "Chest");
+        assertEquals(1, shortRoutine.getNumberOfExercises());
+        assertEquals(1, shortRoutine.getExercises().get(0).getSets());
+        assertEquals(510, shortRoutine.estimatedSeconds());
+        for (int minutes : new int[] {74, 75, 89, 90, Integer.MAX_VALUE}) {
+            profile.setWorkoutDuration(minutes);
+            Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+            assertEquals(3, routine.getExercises().get(0).getSets());
+            assertTrue(routine.estimatedSeconds() <= minutes * 60L);
+            for (Main.Exercise exercise : routine.getExercises()) {
+                assertTrue(exercise.getSets() >= 1 && exercise.getSets() <= 3);
+                assertEquals(10, exercise.getReps());
+            }
+        }
+    }
+
+    @Test
+    void generalFitnessPreferencesCannotBypassEquipmentOrLimitations() {
+        Main.Profile profile = new Main.Profile();
+        profile.setFitnessGoal("General Fitness");
+        profile.setWorkoutDuration(30);
+        profile.addExercisePreference("Barbell Bench Press");
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+        assertFalse(routine.containsExercise("Barbell Bench Press"));
+        assertTrue(routine.containsExercise("Push Ups"));
+        profile.addEquipment("barbell");
+        routine = planner.generateWorkout(profile, "Chest");
+        assertEquals("Barbell Bench Press", routine.getExercises().get(0).getName());
+        profile.addLimit("shoulder");
+        assertEquals(0, planner.generateWorkout(profile, "Chest").getNumberOfExercises());
+        assertNull(planner.generateWorkout(profile, null));
+        assertNull(planner.generateWorkout(profile, "  "));
+        assertNull(planner.generateSchedule(profile).getRoutine("Monday"));
     }
 
     private Main.Profile validProfile() {

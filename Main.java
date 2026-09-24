@@ -18,7 +18,8 @@ public class Main {
 		STRENGTH("Strength", 3, 6, 180, "barbell"),
 		MUSCLE_GAIN("Muscle Gain", 3, 10, 120, "dumbbells"),
 		ENDURANCE("Endurance", 2, 16, 60, "none"),
-		WEIGHT_LOSS("Weight Loss", 3, 12, 90, "none");
+		WEIGHT_LOSS("Weight Loss", 3, 12, 90, "none"),
+		GENERAL_FITNESS("General Fitness", 3, 10, 90, "");
 
 		final String label;
 		final int sets, reps, restSeconds;
@@ -35,7 +36,8 @@ public class Main {
 
 		static FitnessGoal parse(String value) {
 			for (FitnessGoal goal : values()) {
-				if (value != null && goal.label.equalsIgnoreCase(value.trim())) {
+				if (value != null && (goal.label.equalsIgnoreCase(value.trim())
+						|| goal.name().equalsIgnoreCase(value.trim()))) {
 					return goal;
 				}
 			}
@@ -578,11 +580,11 @@ public class Main {
 		public String readFitnessGoal() {
 			while (true) {
 				FitnessGoal goal = FitnessGoal.parse(readNonEmpty(
-						"Fitness goal (Strength, Muscle Gain, Endurance, Weight Loss): "));
+						"Fitness goal (Strength, Muscle Gain, Endurance, Weight Loss, General Fitness): "));
 				if (goal != null) {
 					return goal.label;
 				}
-				System.out.println("Please choose one of the four listed goals.");
+				System.out.println("Please choose one of the listed goals.");
 			}
 		}
 
@@ -1132,7 +1134,8 @@ public class Main {
 
 		private int recommendedSets(Profile profile) {
 			FitnessGoal goal = FitnessGoal.parse(profile.getFitnessGoal());
-			if (goal == FitnessGoal.MUSCLE_GAIN && profile.getWorkoutDuration() >= 90) {
+			if (goal == FitnessGoal.GENERAL_FITNESS
+					|| (goal == FitnessGoal.MUSCLE_GAIN && profile.getWorkoutDuration() >= 90)) {
 				return goal.sets;
 			}
 			return goal.sets + (profile.getWorkoutDuration() >= 75 ? 1 : 0);
