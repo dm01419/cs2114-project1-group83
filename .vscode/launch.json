@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Workout Planner",
+            "request": "launch",
+            "mainClass": "Main",
+            "classPaths": ["${workspaceFolder}/target/demo"],
+            "sourcePaths": ["${workspaceFolder}"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Compile Workout Planner"
+        }
+    ]
+}
