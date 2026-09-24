@@ -117,6 +117,69 @@ class WorkoutPlannerTest {
                 new Main.Exercise("Push Ups", "Chest", "none", ""), null));
     }
 
+    @Test
+    void routineRejectsBlankExerciseNames() {
+        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
+
+        assertFalse(routine.addExercise(
+                new Main.Exercise(" ", "Chest", "none", "")));
+        assertEquals(0, routine.getNumberOfExercises());
+    }
+
+    @Test
+    void scheduleAddsAndFindsWorkoutDay() {
+        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
+
+        assertTrue(schedule.addWorkoutDay("Monday", "Chest"));
+        assertTrue(schedule.isWorkoutDay("monday"));
+        assertEquals("Chest", schedule.getMuscleGroup("MONDAY"));
+    }
+
+    @Test
+    void scheduleRejectsInvalidOrDuplicateDays() {
+        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
+
+        assertFalse(schedule.addWorkoutDay("Funday", "Chest"));
+        assertTrue(schedule.addWorkoutDay("Monday", "Chest"));
+        assertFalse(schedule.addWorkoutDay("Monday", "Back"));
+    }
+
+    @Test
+    void scheduleMovesWorkoutAndItsRoutine() {
+        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
+        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
+
+        schedule.addWorkoutDay("Monday", "Chest");
+        schedule.assignRoutine("Monday", routine);
+
+        assertTrue(schedule.changeWorkoutDay("Monday", "Tuesday"));
+        assertFalse(schedule.isWorkoutDay("Monday"));
+        assertEquals("Chest", schedule.getMuscleGroup("Tuesday"));
+        assertEquals(routine, schedule.getRoutine("Tuesday"));
+    }
+
+    @Test
+    void scheduleDoesNotAssignRoutineToRestDay() {
+        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
+
+        assertFalse(schedule.assignRoutine(
+                "Sunday", new Main.WorkoutRoutine("Rest Day")));
+        assertNull(schedule.getRoutine("Sunday"));
+    }
+
+    @Test
+    void removingWorkoutDayAlsoRemovesItsRoutine() {
+        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
+        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
+
+        schedule.addWorkoutDay("Monday", "Chest");
+        schedule.assignRoutine("Monday", routine);
+
+        assertTrue(schedule.removeWorkoutDay("Monday"));
+        assertFalse(schedule.isWorkoutDay("Monday"));
+        assertNull(schedule.getRoutine("Monday"));
+    }
+
     private Main.Profile validProfile() {
         Main.Profile profile = new Main.Profile();
         profile.setFitnessGoal("Strength");
