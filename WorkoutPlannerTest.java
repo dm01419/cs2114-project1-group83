@@ -236,6 +236,17 @@ class WorkoutPlannerTest {
         assertFalse(planner.addCustomExercise(customExercise));
     }
 
+    @Test
+    void profileStoresLimitationsAndExercisePreferences() {
+        Main.Profile profile = new Main.Profile();
+
+        profile.addLimit("Knee");
+        profile.addExercisePreference("Push Ups");
+
+        assertTrue(profile.hasLimitation("knee"));
+        assertTrue(profile.hasExercisePreference("push ups"));
+    }
+
     private Main.Profile validProfile() {
         Main.Profile profile = new Main.Profile();
         profile.setFitnessGoal("Strength");

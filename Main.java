@@ -86,6 +86,18 @@ public class Main {
 			return true;
 		}
 
+		public boolean hasExercisePreference(String exercise) {
+			if (exercise == null || exercise.trim().isEmpty()) {
+				return false;
+			}
+			for (String preference : exercisePreferences) {
+				if (preference.equalsIgnoreCase(exercise.trim())) {
+					return true;
+				}
+			}
+			return false;
+		}
+
 		private String normalizeDay(String day) {
 			if (day == null || day.trim().isEmpty()) {
 				return null;
@@ -379,6 +391,16 @@ public class Main {
 					profile.addEquipment(item);
 				}
 			}
+			String limitations = readOptional(
+					"Limitations or injuries, separated by commas (or Enter for none): ");
+			for (String limitation : limitations.split(",")) {
+				profile.addLimit(limitation);
+			}
+			String preference = readOptional(
+					"Preferred exercise (or Enter to skip): ");
+			if (!preference.isEmpty()) {
+				profile.addExercisePreference(preference);
+			}
 			String muscleGroup = readNonEmpty("Muscle group for this plan: ");
 			if (profile.getFitnessGoal() == null) {
 				System.out.println("Please assign a fitness goal first.");
@@ -412,6 +434,7 @@ public class Main {
 				}
 			}
 			displaySchedule(schedule);
+			editRoutineMenu(schedule, planner, profile);
 		}
 
 		public String readFitnessGoal() {
@@ -442,6 +465,61 @@ public class Main {
 			System.out.println(schedule == null ? "No workouts scheduled." : schedule);
 		}
 
+		private void editRoutineMenu(WorkoutSchedule schedule,
+				WorkoutPlanner planner, Profile profile) {
+			String answer = readOptional(
+					"Edit a routine? Enter yes to continue, or press Enter to finish: ");
+			while (answer.equalsIgnoreCase("yes")) {
+				String day = readDay("Workout day to edit: ");
+				WorkoutRoutine routine = schedule.getRoutine(day);
+				if (routine == null) {
+					System.out.println("That day is a rest day or has no routine.");
+				} else {
+					String action = readOptional(
+							"Choose action: add, remove, or change: ");
+					if (action.equalsIgnoreCase("add")) {
+						Exercise exercise = readExercise();
+						if (!planner.addExercise(routine, exercise, profile)) {
+							System.out.println("Exercise cannot be added. Check equipment, "
+									+ "limitations, or the recommended amount.");
+						} else {
+							System.out.println("Exercise added.");
+						}
+					} else if (action.equalsIgnoreCase("remove")) {
+						String exerciseName = readNonEmpty("Exercise to remove: ");
+						if (planner.removeExercise(routine, exerciseName)) {
+							System.out.println("Exercise removed.");
+						} else {
+							System.out.println("That exercise is not in the routine.");
+						}
+					} else if (action.equalsIgnoreCase("change")) {
+						String oldExercise = readNonEmpty("Exercise to replace: ");
+						Exercise replacement = readExercise();
+						if (planner.changeExercise(routine, oldExercise,
+								replacement, profile)) {
+							System.out.println("Exercise changed.");
+						} else {
+							System.out.println("Exercise cannot be changed. Check equipment, "
+									+ "limitations, or duplicate names.");
+						}
+					} else {
+						System.out.println("Choose add, remove, or change.");
+					}
+				}
+				answer = readOptional("Edit another routine? Enter yes or press Enter: ");
+			}
+		}
+
+		private Exercise readExercise() {
+			String name = readNonEmpty("Exercise name: ");
+			String muscleGroup = readNonEmpty("Exercise muscle group: ");
+			String equipment = readNonEmpty("Exercise equipment (or none): ");
+			String limitation = readOptional("Exercise limitation (or Enter for none): ");
+			int sets = readPositiveInt("Exercise sets: ");
+			int reps = readPositiveInt("Exercise reps: ");
+			return new Exercise(name, muscleGroup, equipment, limitation, sets, reps);
+		}
+
 		private String readNonEmpty(String prompt) {
 			while (true) {
 				System.out.print(prompt);
@@ -455,7 +533,7 @@ public class Main {
 
 		private String readOptional(String prompt) {
 			System.out.print(prompt);
-			return scanner.nextLine().trim();
+			return scanner.hasNextLine() ? scanner.nextLine().trim() : "";
 		}
 
 		private int readPositiveInt(String prompt) {
