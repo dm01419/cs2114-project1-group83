@@ -884,7 +884,8 @@ public class Main {
 
 		public WorkoutSchedule generateSchedule(Profile profile) {
 			WorkoutSchedule schedule = new WorkoutSchedule();
-			if (profile == null || profile.getFitnessGoal() == null) {
+			if (profile == null || profile.getFitnessGoal() == null
+					|| profile.getWorkoutDuration() <= 0) {
 				return schedule;
 			}
 			String[] split = switch (profile.preferredWorkoutDays.size()) {
@@ -978,6 +979,7 @@ public class Main {
 											   String muscleGroup) {
 			if (profile == null
 					|| profile.getFitnessGoal() == null
+					|| profile.getWorkoutDuration() <= 0
 					|| muscleGroup == null
 					|| muscleGroup.trim().isEmpty()) {
 				return null;

@@ -699,6 +699,37 @@ class WorkoutPlannerTest {
         }
     }
 
+    @Test
+    void generateWorkoutRejectsNonPositiveDuration() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Profile profile = new Main.Profile();
+        profile.setFitnessGoal("Strength");
+        assertNull(planner.generateWorkout(profile, "Chest"));
+        for (int duration : new int[] {0, -10}) {
+            profile.setWorkoutDuration(duration);
+            assertNull(planner.generateWorkout(profile, "Chest"));
+            profile.addPreferredWorkoutDay("Monday");
+            assertNull(planner.generateSchedule(profile).getRoutine("Monday"));
+        }
+    }
+
+    @Test
+    void generatedWorkoutsRespectThirtySixtyAndNinetyMinuteBudgets() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        int[] durations = {30, 60, 90};
+        int[] expectedExerciseCounts = {2, 5, 6};
+        for (int index = 0; index < durations.length; index++) {
+            Main.Profile profile = validProfile();
+            profile.setWorkoutDuration(durations[index]);
+            Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+            assertNotNull(routine);
+            assertEquals(expectedExerciseCounts[index], routine.getNumberOfExercises());
+            assertTrue(routine.estimatedSeconds() <= durations[index] * 60L);
+            assertFalse(planner.addExercise(routine,
+                    new Main.Exercise("Extra Press", "Chest", "none", "", 3, 10), profile));
+        }
+    }
+
     private Main.Profile validProfile() {
         Main.Profile profile = new Main.Profile();
         profile.setFitnessGoal("Strength");
