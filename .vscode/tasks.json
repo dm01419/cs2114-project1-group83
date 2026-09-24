@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compile Workout Planner",
+            "type": "process",
+            "command": "javac",
+            "args": ["-d", "${workspaceFolder}/target/demo", "${workspaceFolder}/Main.java"],
+            "problemMatcher": "$javac"
+        }
+    ]
+}
