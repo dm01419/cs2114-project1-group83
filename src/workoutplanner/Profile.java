@@ -7,9 +7,6 @@ import java.util.List;
  * PLACEHOLDER so Exercise compiles. Pratyay owns the real Profile class;
  * when merging, keep Pratyay's version but make sure it still has
  * addEquipment, addLimit, getEquipment and getLimitations.
- *
- * @author Ishaan Srichitturi
- * @version 2026.09.23
  */
 public class Profile {
     private List<String> equipment;

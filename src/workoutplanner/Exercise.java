@@ -4,30 +4,10 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-//Project 1 fall 2026
-//Virginia Tech Honor Code Pledge:
-//
-//As a Hokie, I will conduct myself with honor and integrity at all times.
-//I will not lie, cheat, or steal, nor will I
-//accept the actions of those who do.
-//-- Ishaan Srichitturi (Ishaan07)
-
-//LLM Statement:
-//
-//During the preparation of this assignment, I, Ishaan Srichitturi used claude
-//to help implement the Exercise class and its test cases.
-//After using this tool, I reviewed and edited the content as needed
-//to ensure its accuracy and take full responsibility for the content in
-//relation to grading. I understand that I am responsible for being able to
-//complete this work without the use of assistance.
-
 /**
  * A single exercise (for example Bench Press, 4 x 8). Stores the muscle
  * groups it works, the equipment it needs, its sets and reps, and the
  * limitations/injuries that make it unsafe.
- *
- * @author Ishaan Srichitturi
- * @version 2026.09.23
  */
 public class Exercise {
 
