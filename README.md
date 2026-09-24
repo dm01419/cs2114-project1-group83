@@ -1,49 +1,43 @@
-<<<<<<< HEAD
-# cs2114-project1-group83
- Workout_Planner
-=======
-# Workout Planner
+# cs2114-project1-group83 — NPNG Workout Planner
 
-A small Java MVP for generating workout routines from a user's fitness goal, workout duration, available equipment, and physical limitations.
+A console workout planner. The user enters a fitness goal, workout days,
+duration, equipment, injuries, and exercise preferences; the planner builds a
+weekly schedule of routines that fit their equipment, avoid their injuries,
+and match their available time.
 
 ## Requirements
 
-- Java 17 or newer
-- JUnit 5 for running the tests
+- Java 11 or newer
+- JUnit 5 for the tests (Maven downloads it; Eclipse has it built in)
 
-## Compile and run
+## Run
 
-From this folder, run:
+In Eclipse: right-click `Main.java` → Run As → Java Application.
+
+From a terminal in this folder:
 
 ```bash
 javac Main.java
 java Main
 ```
 
-The sample program creates a strength-focused Chest workout and prints the exercises that are valid for the profile.
+## Tests
 
-## Run the JUnit tests
+In Eclipse: right-click the project → Run As → JUnit Test.
 
-Maven downloads the JUnit 5 dependency automatically. Run:
+With Maven: `mvn test`
 
-```bash
-../apache-maven-3.9.8/bin/mvn test
-```
+## Classes
 
-If Maven is already installed on your computer, use `mvn test` instead.
+| Class | Owner | Job |
+|---|---|---|
+| `Profile` | Pratyay | Stores the user's goal, duration, limitations, equipment, days, preferences |
+| `ConsoleUI` | Pratyay | Reads and validates input, shows routines and the schedule |
+| `Exercise` | Ishaan | One exercise: muscles, equipment, sets/reps, injuries it conflicts with |
+| `WorkoutRoutine` | Randy | The ordered exercises for one session |
+| `WorkoutSchedule` | Randy | Which days are workout days, their muscle group and routine |
+| `WorkoutPlanner` | David | Generates routines using the rules; adds/removes/changes exercises |
+| `Main` | David | Starts the program |
 
-## MVP features
-
-- Generates a workout for a selected muscle group
-- Rejects plans when no fitness goal is selected
-- Checks required equipment
-- Rejects exercises that conflict with physical limitations
-- Adds, removes, and replaces exercises
-- Limits the recommended number of exercises based on workout duration
-
-## Project structure
-
-- `Main.java`: model classes, `WorkoutPlanner`, and a runnable demo
-- `WorkoutPlannerTest.java`: JUnit tests for normal and bad-input cases
-- `Npng_System_Diagram_Clear.drawio`: system diagram to upload with the repository
->>>>>>> f4e0c81 (Initial commit)
+Each class has a matching `...Test.java` with a normal and a bad-input case
+for every public method.

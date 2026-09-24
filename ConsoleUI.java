@@ -1,3 +1,4 @@
+import java.time.LocalDate;
 import java.util.Scanner;
 
 /**
@@ -39,7 +40,12 @@ public class ConsoleUI {
             System.out.println("Main menu");
             System.out.println("  1) Generate my workout plan");
             System.out.println("  2) View my schedule");
-            System.out.println("  3) Exit");
+            System.out.println("  3) Start today's workout");
+            System.out.println("  4) Add an exercise to a workout day");
+            System.out.println("  5) Remove an exercise from a workout day");
+            System.out.println("  6) Change an exercise");
+            System.out.println("  7) Move a workout to another day");
+            System.out.println("  8) Exit");
             String choice = prompt("Choose an option: ");
 
             switch (choice) {
@@ -50,11 +56,26 @@ public class ConsoleUI {
                     displaySchedule(schedule);
                     break;
                 case "3":
+                    showWorkoutFor(today());
+                    break;
+                case "4":
+                    addExerciseToDay();
+                    break;
+                case "5":
+                    removeExerciseFromDay();
+                    break;
+                case "6":
+                    changeExerciseOnDay();
+                    break;
+                case "7":
+                    moveWorkoutDay();
+                    break;
+                case "8":
                     System.out.println("Goodbye!");
                     running = false;
                     break;
                 default:
-                    System.out.println("Invalid option. Please enter 1, 2, or 3.");
+                    System.out.println("Invalid option. Please enter a number from 1 to 8.");
             }
         }
     }
@@ -116,6 +137,101 @@ public class ConsoleUI {
             System.out.println();
             System.out.println(day + " - " + group);
             displayRoutine(routine);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Editing the plan
+    // ------------------------------------------------------------------
+
+    /**
+     * Shows the workout for the given day, or tells the user it is a rest
+     * day and when to come back.
+     */
+    public void showWorkoutFor(String day) {
+        if (!schedule.isWorkoutDay(day)) {
+            String next = nextWorkoutDay(day);
+            System.out.println("Today is a rest day, you must let your body rest"
+                    + " before starting again, please come back "
+                    + (next == null ? "once you have a plan." : "on " + next + "."));
+            return;
+        }
+        System.out.println(day + " - " + schedule.getMuscleGroup(day));
+        displayRoutine(schedule.getRoutine(day));
+    }
+
+    /** Adds an exercise (from the list or a custom one) to a workout day. */
+    private void addExerciseToDay() {
+        String day = readScheduledDay();
+        if (day == null) {
+            return;
+        }
+        WorkoutRoutine routine = routineFor(day);
+        if (planner.isRoutineFull(routine, profile)) {
+            System.out.println("Chose too many exercises, please choose from the"
+                    + " recommended amount (" + planner.getMaxExercises(profile)
+                    + " for a " + profile.getWorkoutDuration() + " minute workout).");
+            return;
+        }
+        Exercise exercise = readExercise(schedule.getMuscleGroup(day));
+        if (explainIfInvalid(exercise)) {
+            return;
+        }
+        if (planner.addExercise(routine, exercise, profile)) {
+            System.out.println("Added " + exercise + " to " + day + ".");
+        } else {
+            System.out.println(exercise.getName() + " is already in " + day + "'s routine.");
+        }
+    }
+
+    /** Removes an exercise from a workout day. */
+    private void removeExerciseFromDay() {
+        String day = readScheduledDay();
+        if (day == null) {
+            return;
+        }
+        String name = readNonEmpty("Exercise to remove: ");
+        if (planner.removeExercise(schedule.getRoutine(day), name)) {
+            System.out.println("Removed " + name + " from " + day + ".");
+        } else {
+            System.out.println(name + " is not in " + day + "'s routine.");
+        }
+    }
+
+    /** Replaces one exercise on a workout day with another. */
+    private void changeExerciseOnDay() {
+        String day = readScheduledDay();
+        if (day == null) {
+            return;
+        }
+        WorkoutRoutine routine = schedule.getRoutine(day);
+        String oldName = readNonEmpty("Exercise to replace: ");
+        if (routine == null || !routine.containsExercise(oldName)) {
+            System.out.println(oldName + " is not in " + day + "'s routine.");
+            return;
+        }
+        Exercise replacement = readExercise(schedule.getMuscleGroup(day));
+        if (explainIfInvalid(replacement)) {
+            return;
+        }
+        if (planner.changeExercise(routine, oldName, replacement, profile)) {
+            System.out.println("Replaced " + oldName + " with " + replacement + ".");
+        } else {
+            System.out.println(replacement.getName() + " is already in " + day + "'s routine.");
+        }
+    }
+
+    /** Moves a workout (and its routine) from one day to another. */
+    private void moveWorkoutDay() {
+        String oldDay = readScheduledDay();
+        if (oldDay == null) {
+            return;
+        }
+        String newDay = readWorkoutDay();
+        if (schedule.changeWorkoutDay(oldDay, newDay)) {
+            System.out.println("Moved " + oldDay + "'s workout to " + newDay + ".");
+        } else {
+            System.out.println(newDay + " already has a workout. Pick a rest day.");
         }
     }
 
@@ -190,21 +306,33 @@ public class ConsoleUI {
         }
         int i = 1;
         for (Exercise exercise : routine.getExercises()) {
-            System.out.println("  " + i + ". " + exercise.getName()
+            System.out.println("  " + i + ". " + exercise
                     + " (" + exercise.getPrimaryMuscleGroup() + ")");
             i++;
         }
     }
 
-    /** Prints each scheduled day (Monday to Sunday) with its group and routine. */
+    /**
+     * Prints every day from Monday to Sunday: workout days with their group
+     * and routine, and the other days as rest days.
+     */
     public void displaySchedule(WorkoutSchedule schedule) {
         boolean anyScheduled = false;
         for (String day : Profile.DAYS_OF_WEEK) {
+            if (schedule.isWorkoutDay(day)) {
+                anyScheduled = true;
+            }
+        }
+        if (!anyScheduled) {
+            System.out.println("No workouts scheduled.");
+            return;
+        }
+        for (String day : Profile.DAYS_OF_WEEK) {
+            System.out.println();
             if (!schedule.isWorkoutDay(day)) {
+                System.out.println(day + " - Rest day");
                 continue;
             }
-            anyScheduled = true;
-            System.out.println();
             System.out.println(day + " - " + schedule.getMuscleGroup(day));
             WorkoutRoutine routine = schedule.getRoutine(day);
             if (routine == null) {
@@ -213,14 +341,89 @@ public class ConsoleUI {
                 displayRoutine(routine);
             }
         }
-        if (!anyScheduled) {
-            System.out.println("No workouts scheduled.");
-        }
     }
 
     // ------------------------------------------------------------------
     // Private helpers
     // ------------------------------------------------------------------
+
+    /**
+     * Asks for a day that is in the schedule. Returns null (after a message)
+     * if there is no plan yet or the user picks a rest day.
+     */
+    private String readScheduledDay() {
+        String day = readWorkoutDay();
+        if (schedule.isWorkoutDay(day)) {
+            return day;
+        }
+        System.out.println(day + " is a rest day. Generate a plan or pick one of your workout days.");
+        return null;
+    }
+
+    /** Returns the day's routine, creating an empty one if it has none. */
+    private WorkoutRoutine routineFor(String day) {
+        WorkoutRoutine routine = schedule.getRoutine(day);
+        if (routine == null) {
+            routine = new WorkoutRoutine(schedule.getMuscleGroup(day) + " Workout");
+            schedule.assignRoutine(day, routine);
+        }
+        return routine;
+    }
+
+    /**
+     * Asks for an exercise name. If it is in the planner's list, that one is
+     * used; otherwise the user describes a custom exercise.
+     */
+    private Exercise readExercise(String defaultGroup) {
+        String name = readNonEmpty("Exercise name: ");
+        Exercise exercise = planner.findExercise(name, profile);
+        if (exercise != null) {
+            return exercise;
+        }
+        System.out.println(name + " is not in our list, so let's add it as a custom exercise.");
+        String group = prompt("Main muscle group (press Enter for " + defaultGroup + "): ");
+        if (group.isEmpty()) {
+            group = defaultGroup;
+        }
+        String equipmentNeeded = prompt("Equipment needed (press Enter for none): ");
+        int[] setsReps = planner.getSetsAndReps(profile);
+        return new Exercise(name, group, null, equipmentNeeded, setsReps[0], setsReps[1]);
+    }
+
+    /**
+     * Prints why the user cannot do the exercise and returns true, or returns
+     * false if the exercise is fine.
+     */
+    private boolean explainIfInvalid(Exercise exercise) {
+        if (!exercise.isSafeFor(profile)) {
+            System.out.println("Based on your past injuries, this workout will cause pain,"
+                    + " please choose something else.");
+            return true;
+        }
+        if (!exercise.hasEquipmentFor(profile)) {
+            System.out.println("You don't have the equipment for " + exercise.getName()
+                    + " (needs " + exercise.getRequiredEquipment() + ").");
+            return true;
+        }
+        return false;
+    }
+
+    /** Returns today's day name, like "Monday". */
+    private String today() {
+        return Profile.normalizeDay(LocalDate.now().getDayOfWeek().toString());
+    }
+
+    /** Returns the next workout day after the given day, or null if none. */
+    private String nextWorkoutDay(String day) {
+        int start = Profile.DAYS_OF_WEEK.indexOf(Profile.normalizeDay(day));
+        for (int i = 1; i <= 7; i++) {
+            String next = Profile.DAYS_OF_WEEK.get((start + i) % 7);
+            if (schedule.isWorkoutDay(next)) {
+                return next;
+            }
+        }
+        return null;
+    }
 
     private String prompt(String message) {
         System.out.print(message);

@@ -1,39 +1,87 @@
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Tests for WorkoutPlanner: a normal case and a bad-input case for each
+ * method.
+ */
 class WorkoutPlannerTest {
+    private WorkoutPlanner planner;
+    private Profile profile;
+
+    @BeforeEach
+    void setUp() {
+        planner = new WorkoutPlanner();
+        profile = new Profile();
+        profile.setFitnessGoal("Strength");
+        profile.setWorkoutDuration(60);
+        profile.addEquipment("Barbell");
+        profile.addEquipment("Dumbbells");
+    }
+
     @Test
     void generateWorkoutCreatesRoutineForValidProfile() {
-        Main.Profile profile = validProfile();
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-
-        Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+        WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
 
         assertNotNull(routine);
         assertTrue(routine.getNumberOfExercises() > 0);
+        for (Exercise exercise : routine.getExercises()) {
+            assertEquals("Chest", exercise.getPrimaryMuscleGroup());
+            assertTrue(exercise.canPerformWith(profile));
+        }
     }
 
     @Test
     void generateWorkoutRejectsProfileWithoutGoal() {
-        Main.Profile profile = new Main.Profile();
-        profile.setWorkoutDuration(60);
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-
-        assertNull(planner.generateWorkout(profile, "Chest"));
+        Profile noGoal = new Profile();
+        assertNull(planner.generateWorkout(noGoal, "Chest"));
+        assertNull(planner.generateWorkout(profile, " "));
+        assertNull(planner.generateWorkout(null, "Chest"));
     }
 
     @Test
-    void addExerciseAcceptsExerciseWithAvailableEquipment() {
-        Main.Profile profile = validProfile();
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
-        Main.Exercise exercise = new Main.Exercise(
-                "Bench Press", "Chest", "barbell", "shoulder");
+    void generateWorkoutAssignsSetsAndRepsFromGoal() {
+        WorkoutRoutine routine = planner.generateWorkout(profile, "Legs");
+        Exercise first = routine.getExercises().get(0);
+        assertEquals(5, first.getSets());
+        assertEquals(5, first.getReps());
+    }
+
+    @Test
+    void generateWorkoutSkipsExercisesThatConflictWithInjuries() {
+        profile.addLimit("Knee injury");
+        WorkoutRoutine routine = planner.generateWorkout(profile, "Legs");
+        assertFalse(routine.containsExercise("Barbell Squat"));
+        assertFalse(routine.containsExercise("Dumbbell Lunges"));
+        assertTrue(routine.containsExercise("Romanian Deadlift"));
+    }
+
+    @Test
+    void generateWorkoutPutsPreferredExercisesFirst() {
+        profile.addExercisePreference("Push Ups");
+        WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+        assertEquals("Push Ups", routine.getExercises().get(0).getName());
+    }
+
+    @Test
+    void generateWorkoutRespectsTimeLimit() {
+        profile.setWorkoutDuration(30);
+        WorkoutRoutine routine = planner.generateWorkout(profile, "Legs");
+        assertEquals(3, routine.getNumberOfExercises());
+    }
+
+    @Test
+    void addExerciseAcceptsValidExercise() {
+        WorkoutRoutine routine = new WorkoutRoutine("Chest Workout");
+        Exercise exercise = new Exercise("Bench Press", "Chest", null,
+                "Barbell", 5, 5);
 
         assertTrue(planner.addExercise(routine, exercise, profile));
         assertTrue(routine.containsExercise("Bench Press"));
@@ -41,20 +89,32 @@ class WorkoutPlannerTest {
 
     @Test
     void addExerciseRejectsUnavailableEquipment() {
-        Main.Profile profile = validProfile();
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
-        Main.Exercise exercise = new Main.Exercise(
-                "Cable Fly", "Chest", "cable machine", "shoulder");
+        WorkoutRoutine routine = new WorkoutRoutine("Chest Workout");
+        Exercise exercise = new Exercise("Cable Fly", "Chest", null,
+                "Cable Machine", 3, 12);
 
         assertFalse(planner.addExercise(routine, exercise, profile));
+        assertFalse(planner.addExercise(null, exercise, profile));
+        assertFalse(planner.addExercise(routine, null, profile));
+    }
+
+    @Test
+    void addExerciseRejectsTooManyForTime() {
+        profile.setWorkoutDuration(30);
+        WorkoutRoutine routine = new WorkoutRoutine("Chest Workout");
+        for (int i = 1; i <= 3; i++) {
+            assertTrue(planner.addExercise(routine,
+                    new Exercise("Move " + i, "Chest", null, null, 3, 10),
+                    profile));
+        }
+        assertTrue(planner.isRoutineFull(routine, profile));
+        assertFalse(planner.addExercise(routine,
+                new Exercise("Move 4", "Chest", null, null, 3, 10), profile));
     }
 
     @Test
     void removeExerciseRemovesExistingExercise() {
-        Main.Profile profile = validProfile();
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
+        WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
 
         assertTrue(planner.removeExercise(routine, "Push Ups"));
         assertFalse(routine.containsExercise("Push Ups"));
@@ -62,130 +122,85 @@ class WorkoutPlannerTest {
 
     @Test
     void removeExerciseReturnsFalseForMissingExercise() {
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
+        WorkoutRoutine routine = new WorkoutRoutine("Chest Workout");
 
         assertFalse(planner.removeExercise(routine, "Deadlift"));
+        assertFalse(planner.removeExercise(null, "Deadlift"));
     }
 
     @Test
     void changeExerciseReplacesValidExercise() {
-        Main.Profile profile = validProfile();
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
-        Main.Exercise replacement = new Main.Exercise(
-                "Incline Press", "Chest", "barbell", "shoulder");
+        WorkoutRoutine routine = new WorkoutRoutine("Leg Workout");
+        planner.addExercise(routine,
+                new Exercise("Squat", "Legs", null, "Barbell", 5, 5), profile);
+        Exercise legPress = new Exercise("Leg Press", "Legs", null, null, 5, 5);
 
-        assertTrue(planner.changeExercise(
-                routine, "Push Ups", replacement, profile));
-        assertTrue(routine.containsExercise("Incline Press"));
-        assertFalse(routine.containsExercise("Push Ups"));
+        assertTrue(planner.changeExercise(routine, "Squat", legPress, profile));
+        assertTrue(routine.containsExercise("Leg Press"));
+        assertFalse(routine.containsExercise("Squat"));
     }
 
     @Test
-    void changeExerciseRejectsInvalidReplacement() {
-        Main.Profile profile = validProfile();
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        Main.WorkoutRoutine routine = planner.generateWorkout(profile, "Chest");
-        Main.Exercise replacement = new Main.Exercise(
-                "Cable Fly", "Chest", "cable machine", "shoulder");
+    void changeExerciseRejectsReplacementThatConflictsWithLimitations() {
+        profile.addLimit("Knee injury");
+        WorkoutRoutine routine = new WorkoutRoutine("Leg Workout");
+        planner.addExercise(routine,
+                new Exercise("Glute Bridge", "Legs", null, null, 3, 10), profile);
+        Exercise lunges = planner.findExercise("Dumbbell Lunges", profile);
 
         assertFalse(planner.changeExercise(
-                routine, "Push Ups", replacement, profile));
+                routine, "Glute Bridge", lunges, profile));
+        assertTrue(routine.containsExercise("Glute Bridge"));
+        assertFalse(planner.changeExercise(null, "Glute Bridge", lunges, profile));
     }
 
     @Test
-    void isExerciseValidReturnsFalseForConflictingLimitation() {
-        Main.Profile profile = validProfile();
+    void isExerciseValidTrueWhenEquipmentAndNoConflict() {
+        assertTrue(planner.isExerciseValid(
+                planner.findExercise("Barbell Squat", profile), profile));
+    }
+
+    @Test
+    void isExerciseValidFalseForConflictOrMissingEquipment() {
         profile.addLimit("knee");
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-        Main.Exercise exercise = new Main.Exercise(
-                "Barbell Squat", "Legs", "barbell", "knee");
-
-        assertFalse(planner.isExerciseValid(exercise, profile));
-    }
-
-    @Test
-    void nullInputsAreHandledSafely() {
-        Main.Profile profile = validProfile();
-        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
-
-        assertFalse(profile.hasEquipment(null));
-        assertFalse(profile.hasLimitation(null));
-        assertFalse(planner.isExerciseValid(null, profile));
         assertFalse(planner.isExerciseValid(
-                new Main.Exercise("Push Ups", "Chest", "none", ""), null));
+                planner.findExercise("Barbell Squat", profile), profile));
+        assertFalse(planner.isExerciseValid(
+                planner.findExercise("Pull Ups", profile), profile));
+        assertFalse(planner.isExerciseValid(null, profile));
     }
 
     @Test
-    void routineRejectsBlankExerciseNames() {
-        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
-
-        assertFalse(routine.addExercise(
-                new Main.Exercise(" ", "Chest", "none", "")));
-        assertEquals(0, routine.getNumberOfExercises());
+    void getSetsAndRepsDependsOnGoal() {
+        assertArrayEquals(new int[] {5, 5}, planner.getSetsAndReps(profile));
+        profile.setFitnessGoal("Muscle Gain");
+        assertArrayEquals(new int[] {4, 10}, planner.getSetsAndReps(profile));
+        profile.setFitnessGoal("Endurance");
+        assertArrayEquals(new int[] {3, 15}, planner.getSetsAndReps(profile));
+        profile.setFitnessGoal("General Fitness");
+        assertArrayEquals(new int[] {3, 12}, planner.getSetsAndReps(profile));
+        assertArrayEquals(new int[] {3, 12}, planner.getSetsAndReps(null));
     }
 
     @Test
-    void scheduleAddsAndFindsWorkoutDay() {
-        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
-
-        assertTrue(schedule.addWorkoutDay("Monday", "Chest"));
-        assertTrue(schedule.isWorkoutDay("monday"));
-        assertEquals("Chest", schedule.getMuscleGroup("MONDAY"));
-    }
-
-    @Test
-    void scheduleRejectsInvalidOrDuplicateDays() {
-        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
-
-        assertFalse(schedule.addWorkoutDay("Funday", "Chest"));
-        assertTrue(schedule.addWorkoutDay("Monday", "Chest"));
-        assertFalse(schedule.addWorkoutDay("Monday", "Back"));
-    }
-
-    @Test
-    void scheduleMovesWorkoutAndItsRoutine() {
-        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
-        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
-
-        schedule.addWorkoutDay("Monday", "Chest");
-        schedule.assignRoutine("Monday", routine);
-
-        assertTrue(schedule.changeWorkoutDay("Monday", "Tuesday"));
-        assertFalse(schedule.isWorkoutDay("Monday"));
-        assertEquals("Chest", schedule.getMuscleGroup("Tuesday"));
-        assertEquals(routine, schedule.getRoutine("Tuesday"));
-    }
-
-    @Test
-    void scheduleDoesNotAssignRoutineToRestDay() {
-        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
-
-        assertFalse(schedule.assignRoutine(
-                "Sunday", new Main.WorkoutRoutine("Rest Day")));
-        assertNull(schedule.getRoutine("Sunday"));
-    }
-
-    @Test
-    void removingWorkoutDayAlsoRemovesItsRoutine() {
-        Main.WorkoutSchedule schedule = new Main.WorkoutSchedule();
-        Main.WorkoutRoutine routine = new Main.WorkoutRoutine("Chest Workout");
-
-        schedule.addWorkoutDay("Monday", "Chest");
-        schedule.assignRoutine("Monday", routine);
-
-        assertTrue(schedule.removeWorkoutDay("Monday"));
-        assertFalse(schedule.isWorkoutDay("Monday"));
-        assertNull(schedule.getRoutine("Monday"));
-    }
-
-    private Main.Profile validProfile() {
-        Main.Profile profile = new Main.Profile();
-        profile.setFitnessGoal("Strength");
+    void getMaxExercisesDependsOnDuration() {
+        profile.setWorkoutDuration(30);
+        assertEquals(3, planner.getMaxExercises(profile));
         profile.setWorkoutDuration(60);
-        profile.addEquipment("barbell");
-        profile.addEquipment("dumbbells");
-        return profile;
+        assertEquals(5, planner.getMaxExercises(profile));
+        profile.setWorkoutDuration(90);
+        assertEquals(6, planner.getMaxExercises(profile));
+        assertEquals(3, planner.getMaxExercises(null));
+    }
+
+    @Test
+    void findExerciseReturnsCopyOrNull() {
+        Exercise found = planner.findExercise("barbell squat", profile);
+        assertEquals("Barbell Squat", found.getName());
+        found.setSets(9);
+        assertEquals(5, planner.findExercise("Barbell Squat", profile).getSets());
+        assertNull(planner.findExercise("Moonwalk", profile));
+        assertNull(planner.findExercise(null, profile));
+        assertFalse(planner.getExerciseLibrary().isEmpty());
     }
 }

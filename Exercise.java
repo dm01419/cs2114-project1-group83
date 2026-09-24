@@ -1,5 +1,3 @@
-package workoutplanner;
-
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -202,27 +200,33 @@ public class Exercise {
      *         limitation, false otherwise (including a null profile)
      */
     public boolean canPerformWith(Profile profile) {
-        if (profile == null) {
-            return false;
-        }
-        return hasEquipment(profile.getEquipment())
-            && !hasConflict(profile.getLimitations());
+        return hasEquipmentFor(profile) && isSafeFor(profile);
     }
 
 
     /**
-     * Checks whether the needed equipment is in the given list.
+     * Returns whether the user has the equipment this exercise needs.
+     * Matching ignores case and allows singular/plural, so "Dumbbell"
+     * matches "Dumbbells".
+     *
+     * @param profile
+     *            the user's profile
+     * @return true if no equipment is needed or the user has it
      */
-    private boolean hasEquipment(Iterable<String> equipment) {
+    public boolean hasEquipmentFor(Profile profile) {
         if (requiredEquipment.equals(NONE)) {
             return true;
         }
-        if (equipment == null) {
+        if (profile == null || profile.getEquipment() == null) {
             return false;
         }
-        for (String item : equipment) {
-            if (item != null && item.trim().equalsIgnoreCase(
-                requiredEquipment)) {
+        String needed = requiredEquipment.toLowerCase();
+        for (String item : profile.getEquipment()) {
+            if (item == null || item.trim().isEmpty()) {
+                continue;
+            }
+            String have = item.trim().toLowerCase();
+            if (have.contains(needed) || needed.contains(have)) {
                 return true;
             }
         }
@@ -231,25 +235,52 @@ public class Exercise {
 
 
     /**
-     * Checks whether any of the given limitations conflict with this
-     * exercise.
+     * Returns whether none of the user's limitations make this exercise
+     * unsafe. A limitation conflicts if it contains one of this exercise's
+     * conflicting keywords, ignoring case ("Knee injury" contains "knee").
+     *
+     * @param profile
+     *            the user's profile
+     * @return true if the exercise is safe, false if a limitation conflicts
+     *         or the profile is null
      */
-    private boolean hasConflict(Iterable<String> limitations) {
-        if (limitations == null) {
+    public boolean isSafeFor(Profile profile) {
+        if (profile == null) {
             return false;
         }
-        for (String limit : limitations) {
+        if (profile.getLimitations() == null) {
+            return true;
+        }
+        for (String limit : profile.getLimitations()) {
             if (limit == null) {
                 continue;
             }
             String lower = limit.toLowerCase();
             for (String conflict : conflictingLimitations) {
                 if (lower.contains(conflict)) {
-                    return true;
+                    return false;
                 }
             }
         }
-        return false;
+        return true;
+    }
+
+
+    /**
+     * Returns a new exercise with the same data but its own sets and reps,
+     * so changing the copy does not change the original.
+     *
+     * @param newSets
+     *            sets for the copy, must be positive
+     * @param newReps
+     *            reps for the copy, must be positive
+     * @return the copy
+     */
+    public Exercise copy(int newSets, int newReps) {
+        Exercise copy = new Exercise(name, primaryMuscleGroup,
+            secondaryMuscleGroup, requiredEquipment, newSets, newReps);
+        copy.conflictingLimitations.addAll(conflictingLimitations);
+        return copy;
     }
 
 
