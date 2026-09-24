@@ -188,6 +188,37 @@ public class ExerciseTest extends student.TestCase {
 
 
     /**
+     * Tests that a limitation unrelated to the exercise does not block it.
+     */
+    public void testCanPerformWithUnrelatedLimitation() {
+        profile.addEquipment("Barbell");
+        profile.addLimit("Shoulder injury");
+        assertTrue(squat.canPerformWith(profile));
+    }
+
+
+    /**
+     * Tests canPerformWith when the profile returns null lists.
+     */
+    public void testCanPerformWithNullLists() {
+        Profile nullProfile = new Profile() {
+            @Override
+            public java.util.List<String> getEquipment() {
+                return null;
+            }
+
+
+            @Override
+            public java.util.List<String> getLimitations() {
+                return null;
+            }
+        };
+        assertFalse(bench.canPerformWith(nullProfile));
+        assertTrue(pushUp.canPerformWith(nullProfile));
+    }
+
+
+    /**
      * Tests equals and hashCode.
      */
     public void testEquals() {
