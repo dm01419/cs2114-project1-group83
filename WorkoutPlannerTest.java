@@ -730,6 +730,61 @@ class WorkoutPlannerTest {
         }
     }
 
+    @Test
+    void invalidDurationClearsPreviouslyValidDuration() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        for (int duration : new int[] {0, -10}) {
+            Main.Profile profile = validProfile();
+            profile.setWorkoutDuration(duration);
+            assertEquals(0, profile.getWorkoutDuration());
+            assertNull(planner.generateWorkout(profile, "Chest"));
+        }
+    }
+
+    @Test
+    void splitNamesIgnoreCaseAndWhitespace() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        for (String group : new String[] {"Upper", "Push", "Pull", "Biceps", "Triceps"}) {
+            Main.WorkoutRoutine expected = planner.generateWorkout(validProfile(), group);
+            Main.WorkoutRoutine actual = planner.generateWorkout(validProfile(),
+                    " " + group.toLowerCase(java.util.Locale.ROOT) + " ");
+            assertTrue(expected.getNumberOfExercises() > 0);
+            assertEquals(expected.toString(), actual.toString());
+        }
+    }
+
+    @Test
+    void customArmExercisesUseExplicitMuscleGroup() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Profile profile = validProfile();
+        profile.setWorkoutDuration(180);
+        assertTrue(planner.addCustomExercise(new Main.Exercise(
+                "Custom Biceps Exercise", "Arms", "none", "", 1, 10)));
+        assertFalse(planner.generateWorkout(profile, "Triceps")
+                .containsExercise("Custom Biceps Exercise"));
+        assertTrue(planner.generateWorkout(profile, "Arms")
+                .containsExercise("Custom Biceps Exercise"));
+        assertTrue(planner.addCustomExercise(new Main.Exercise(
+                "Custom Curl", "triceps", "none", "", 1, 10)));
+        assertTrue(planner.generateWorkout(profile, "Triceps").containsExercise("Custom Curl"));
+        assertTrue(planner.generateWorkout(profile, "Arms").containsExercise("Custom Curl"));
+        assertFalse(planner.generateWorkout(profile, "Biceps").containsExercise("Custom Curl"));
+    }
+
+    @Test
+    void shortFullBodySessionPrioritizesPreferredExercise() {
+        Main.WorkoutPlanner planner = new Main.WorkoutPlanner();
+        Main.Profile profile = validProfile();
+        profile.setWorkoutDuration(10);
+        profile.addPreferredWorkoutDay("Monday");
+        profile.addExercisePreference("Push Ups");
+        Main.WorkoutRoutine routine = planner.generateSchedule(profile).getRoutine("Monday");
+        assertTrue(routine.containsExercise("Push Ups"));
+        assertTrue(routine.estimatedSeconds() <= 600);
+        profile.addLimit("shoulder");
+        assertFalse(planner.generateSchedule(profile).getRoutine("Monday").containsExercise("Push Ups"));
+    }
+
     private Main.Profile validProfile() {
         Main.Profile profile = new Main.Profile();
         profile.setFitnessGoal("Strength");

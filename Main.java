@@ -55,6 +55,11 @@ public class Main {
 			case "back" -> "Back";
 			case "chest" -> "Chest";
 			case "full body", "full-body" -> "Full Body";
+			case "upper" -> "Upper";
+			case "push" -> "Push";
+			case "pull" -> "Pull";
+			case "biceps" -> "Biceps";
+			case "triceps" -> "Triceps";
 			default -> value.trim();
 		};
 	}
@@ -73,9 +78,7 @@ public class Main {
 		}
 
 		public void setWorkoutDuration(int minutes) {
-			if (minutes > 0) {
-				workoutDuration = minutes;
-			}
+			workoutDuration = Math.max(0, minutes);
 		}
 
 		public void addLimit(String limit) {
@@ -553,7 +556,7 @@ public class Main {
 			String customName = readOptional(
 					"Custom exercise name (press Enter to skip): ");
 			if (!customName.isEmpty()) {
-				String customGroup = readNonEmpty("Custom exercise muscle group (Shoulders, Back, Chest, Legs, Arms, or custom): ");
+				String customGroup = readNonEmpty("Custom exercise muscle group (Shoulders, Back, Chest, Legs, Arms, Biceps, Triceps, or custom): ");
 				String customEquipment = readNonEmpty(
 						"Custom exercise equipment (or none): ");
 				String customLimitation = readOptional(
@@ -686,7 +689,7 @@ public class Main {
 
 		private Exercise readExercise() {
 			String name = readNonEmpty("Exercise name: ");
-			String muscleGroup = readNonEmpty("Exercise muscle group (Shoulders, Back, Chest, Legs, Arms, or custom): ");
+			String muscleGroup = readNonEmpty("Exercise muscle group (Shoulders, Back, Chest, Legs, Arms, Biceps, Triceps, or custom): ");
 			String equipment = readNonEmpty("Exercise equipment (or none): ");
 			String limitation = readOptional("Exercise limitation (or Enter for none): ");
 			int sets = readPositiveInt("Exercise sets: ");
@@ -1001,6 +1004,13 @@ public class Main {
 				for (String group : splitGroups) {
 					groups.add(generateWorkout(profile, group).getExercises());
 				}
+				for (List<Exercise> group : groups) {
+					for (Exercise exercise : group) {
+						if (profile.hasExercisePreference(exercise.name)) {
+							addGeneratedExercise(routine, exercise, profile);
+						}
+					}
+				}
 				// Take one exercise per group before repeating a group, within the shared time budget.
 				for (int index = 0; index < recommendedExerciseCount(profile); index++) {
 					for (List<Exercise> group : groups) {
@@ -1018,9 +1028,11 @@ public class Main {
 					.thenComparing(e -> !goal.preferredEquipment.equalsIgnoreCase(e.getEquipment())));
 			for (Exercise exercise : candidates) {
 				if ((exercise.getMuscleGroup().equalsIgnoreCase(muscleGroup)
+						|| (muscleGroup.equals("Arms")
+								&& (exercise.muscleGroup.equals("Biceps") || exercise.muscleGroup.equals("Triceps")))
 						|| (exercise.getMuscleGroup().equals("Arms")
-								&& (muscleGroup.equals("Biceps") && exercise.name.contains("Curl")
-								|| muscleGroup.equals("Triceps") && !exercise.name.contains("Curl"))))
+								&& (muscleGroup.equals("Biceps") || muscleGroup.equals("Triceps"))
+								&& exercise.getTargetMusclePercentages().containsKey(muscleGroup)))
 						&& isExerciseValid(exercise, profile)) {
 					Exercise prescribed = exercise.goalBased
 							? new Exercise(exercise.name, exercise.muscleGroup, exercise.equipment,
