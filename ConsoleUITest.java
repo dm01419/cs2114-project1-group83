@@ -90,9 +90,66 @@ class ConsoleUITest {
 
     @Test
     void readWorkoutDurationRepromptsOnBadInput() {
-        assertEquals(60, uiWithInput("hour\n-30\n60\n").readWorkoutDuration());
-        assertTrue(out().contains("Response should be a number."));
-        assertTrue(out().contains("Response should be a positive number of minutes."));
+        String bad = "hour\n-30\n0\n50000\n99999999999\n60.5\n9\n181\n";
+        assertEquals(60, uiWithInput(bad + "60\n").readWorkoutDuration());
+        String message = "Response should be a number between 10 - 180 minutes.";
+        assertEquals(8, out().split(message, -1).length - 1);
+    }
+
+    @Test
+    void readWorkoutDurationAcceptsLimits() {
+        assertEquals(10, uiWithInput("10\n").readWorkoutDuration());
+        assertEquals(180, uiWithInput("180\n").readWorkoutDuration());
+    }
+
+    @Test
+    void readFitnessGoalRepromptsOnUnknownGoal() {
+        assertEquals("Muscle Gain",
+                uiWithInput("Get huge\nmuscle gain\n").readFitnessGoal());
+        assertTrue(out().contains("Response should be one of: Strength, Muscle Gain,"
+                + " Endurance, General Fitness."));
+    }
+
+    @Test
+    void longTextIsRepromptedEverywhere() {
+        String tooLong = "x".repeat(Profile.MAX_TEXT_LENGTH + 1);
+        assertEquals("Dumbbells",
+                uiWithInput(tooLong + "\nDumbbells\n").readEquipment());
+        assertTrue(out().contains("Response must be 50 characters or fewer."));
+    }
+
+    @Test
+    void unknownMuscleGroupIsReprompted() {
+        uiWithInput(BASIC_SETUP + "1\nBanana\nchest\n8\n").start();
+        assertTrue(out().contains("Response should be one of: Chest, Back, Legs,"
+                + " Shoulders, Arms, Core."));
+        assertEquals("Chest", schedule.getMuscleGroup("Monday"));
+    }
+
+    @Test
+    void setupStopsAskingWhenListIsFull() {
+        for (int i = 1; i <= Profile.MAX_LIST_SIZE; i++) {
+            profile.addEquipment("Item " + i);
+        }
+        uiWithInput("Strength\n60\n1\nMonday\nn\nn\n8\n").start();
+        assertTrue(out().contains("You have reached the limit of 20 equipment."));
+        assertTrue(!out().contains("Add a piece of equipment"));
+        assertTrue(out().contains("Goodbye!"));
+    }
+
+    @Test
+    void customExerciseWithUnknownGroupIsReprompted() {
+        String input = BASIC_SETUP
+                + "1\nChest\n"
+                + "5\nMonday\nPush Ups\n"
+                + "4\nMonday\nCable Fly\nBanana\n\n\n"
+                + "8\n";
+        uiWithInput(input).start();
+        assertTrue(out().contains("Response should be one of: Chest, Back, Legs,"
+                + " Shoulders, Arms, Core."));
+        assertEquals("Chest",
+                schedule.getRoutine("Monday").getExercise("Cable Fly")
+                        .getPrimaryMuscleGroup());
     }
 
     @Test

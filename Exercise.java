@@ -15,6 +15,15 @@ public class Exercise {
      */
     public static final String NONE = "None";
 
+    /** Most sets allowed for one exercise. */
+    public static final int MAX_SETS = 10;
+
+    /** Most reps allowed per set. */
+    public static final int MAX_REPS = 50;
+
+    /** Longest name, muscle group or equipment text allowed. */
+    public static final int MAX_TEXT_LENGTH = 50;
+
     private String name;
     private String primaryMuscleGroup;
     private String secondaryMuscleGroup;
@@ -35,12 +44,12 @@ public class Exercise {
      * @param requiredEquipment
      *            equipment needed, null or empty means none (bodyweight)
      * @param sets
-     *            number of sets, must be positive
+     *            number of sets, from 1 to MAX_SETS
      * @param reps
-     *            number of reps per set, must be positive
+     *            number of reps per set, from 1 to MAX_REPS
      * @throws IllegalArgumentException
-     *             if the name or primary muscle group is empty, or sets/reps
-     *             are not positive
+     *             if the name or primary muscle group is empty, any text is
+     *             longer than MAX_TEXT_LENGTH, or sets/reps are out of range
      */
     public Exercise(
         String name,
@@ -57,6 +66,10 @@ public class Exercise {
             throw new IllegalArgumentException(
                 "Primary muscle group cannot be empty");
         }
+        checkLength(name, "Exercise name");
+        checkLength(primaryMuscleGroup, "Primary muscle group");
+        checkLength(secondaryMuscleGroup, "Secondary muscle group");
+        checkLength(requiredEquipment, "Equipment");
         this.name = name.trim();
         this.primaryMuscleGroup = primaryMuscleGroup.trim();
         this.secondaryMuscleGroup = isBlank(secondaryMuscleGroup)
@@ -135,13 +148,14 @@ public class Exercise {
      * Changes the number of sets.
      *
      * @param sets
-     *            the new number of sets, must be positive
+     *            the new number of sets, from 1 to MAX_SETS
      * @throws IllegalArgumentException
-     *             if sets is not positive
+     *             if sets is out of range
      */
     public void setSets(int sets) {
-        if (sets <= 0) {
-            throw new IllegalArgumentException("Sets must be positive");
+        if (sets < 1 || sets > MAX_SETS) {
+            throw new IllegalArgumentException(
+                "Sets must be between 1 and " + MAX_SETS);
         }
         this.sets = sets;
     }
@@ -151,13 +165,14 @@ public class Exercise {
      * Changes the number of reps per set.
      *
      * @param reps
-     *            the new number of reps, must be positive
+     *            the new number of reps, from 1 to MAX_REPS
      * @throws IllegalArgumentException
-     *             if reps is not positive
+     *             if reps is out of range
      */
     public void setReps(int reps) {
-        if (reps <= 0) {
-            throw new IllegalArgumentException("Reps must be positive");
+        if (reps < 1 || reps > MAX_REPS) {
+            throw new IllegalArgumentException(
+                "Reps must be between 1 and " + MAX_REPS);
         }
         this.reps = reps;
     }
@@ -271,9 +286,9 @@ public class Exercise {
      * so changing the copy does not change the original.
      *
      * @param newSets
-     *            sets for the copy, must be positive
+     *            sets for the copy, from 1 to MAX_SETS
      * @param newReps
-     *            reps for the copy, must be positive
+     *            reps for the copy, from 1 to MAX_REPS
      * @return the copy
      */
     public Exercise copy(int newSets, int newReps) {
@@ -281,6 +296,17 @@ public class Exercise {
             secondaryMuscleGroup, requiredEquipment, newSets, newReps);
         copy.conflictingLimitations.addAll(conflictingLimitations);
         return copy;
+    }
+
+
+    /**
+     * Throws if the text is longer than MAX_TEXT_LENGTH once trimmed.
+     */
+    private static void checkLength(String s, String label) {
+        if (s != null && s.trim().length() > MAX_TEXT_LENGTH) {
+            throw new IllegalArgumentException(
+                label + " must be " + MAX_TEXT_LENGTH + " characters or fewer");
+        }
     }
 
 

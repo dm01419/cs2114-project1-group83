@@ -47,6 +47,24 @@ class WorkoutPlannerTest {
     }
 
     @Test
+    void generateWorkoutRejectsUnknownMuscleGroup() {
+        assertNull(planner.generateWorkout(profile, "Banana"));
+        assertEquals("Chest Workout",
+                planner.generateWorkout(profile, " chest ").getName());
+    }
+
+    @Test
+    void normalizeMuscleGroupMatchesKnownGroups() {
+        assertEquals("Shoulders", WorkoutPlanner.normalizeMuscleGroup("SHOULDERS"));
+        assertNull(WorkoutPlanner.normalizeMuscleGroup("Banana"));
+        assertNull(WorkoutPlanner.normalizeMuscleGroup(null));
+        for (Exercise exercise : planner.getExerciseLibrary()) {
+            assertEquals(exercise.getPrimaryMuscleGroup(),
+                    WorkoutPlanner.normalizeMuscleGroup(exercise.getPrimaryMuscleGroup()));
+        }
+    }
+
+    @Test
     void generateWorkoutAssignsSetsAndRepsFromGoal() {
         WorkoutRoutine routine = planner.generateWorkout(profile, "Legs");
         Exercise first = routine.getExercises().get(0);

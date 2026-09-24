@@ -7,6 +7,10 @@ import java.util.List;
  * and changes exercises in a routine.
  */
 public class WorkoutPlanner {
+    /** The muscle groups a workout day can target. */
+    public static final List<String> MUSCLE_GROUPS = List.of(
+            "Chest", "Back", "Legs", "Shoulders", "Arms", "Core");
+
     private final List<Exercise> exerciseLibrary = new ArrayList<>();
 
     /** Creates a planner with the built-in list of exercises. */
@@ -45,18 +49,17 @@ public class WorkoutPlanner {
     /**
      * Creates a workout routine based on the user's profile and target muscle
      * group. Exercises the user likes come first. Returns null if there is no
-     * fitness goal or the muscle group is empty.
+     * fitness goal or the muscle group is not one of MUSCLE_GROUPS.
      */
     public WorkoutRoutine generateWorkout(Profile profile, String muscleGroup) {
+        muscleGroup = normalizeMuscleGroup(muscleGroup);
         if (profile == null
                 || profile.getFitnessGoal() == null
-                || muscleGroup == null
-                || muscleGroup.trim().isEmpty()) {
+                || muscleGroup == null) {
             return null;
         }
 
-        WorkoutRoutine routine =
-                new WorkoutRoutine(muscleGroup.trim() + " Workout");
+        WorkoutRoutine routine = new WorkoutRoutine(muscleGroup + " Workout");
 
         // Preferred exercises first, then everything else.
         for (Exercise exercise : exerciseLibrary) {
@@ -171,6 +174,22 @@ public class WorkoutPlanner {
             if (exercise.getName().equalsIgnoreCase(name.trim())) {
                 int[] setsReps = getSetsAndReps(profile);
                 return exercise.copy(setsReps[0], setsReps[1]);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns the properly capitalized muscle group ("Chest"), or null if the
+     * input is not one of MUSCLE_GROUPS.
+     */
+    public static String normalizeMuscleGroup(String group) {
+        if (group == null) {
+            return null;
+        }
+        for (String option : MUSCLE_GROUPS) {
+            if (option.equalsIgnoreCase(group.trim())) {
+                return option;
             }
         }
         return null;

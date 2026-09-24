@@ -1,4 +1,5 @@
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Scanner;
 
 /**
@@ -97,13 +98,16 @@ public class ConsoleUI {
             }
         }
 
-        while (askYesNo("Add a piece of equipment you have access to?")) {
+        while (hasRoom(profile.getEquipment(), "equipment")
+                && askYesNo("Add a piece of equipment you have access to?")) {
             profile.addEquipment(readEquipment());
         }
-        while (askYesNo("Add an injury or physical limitation?")) {
+        while (hasRoom(profile.getLimitations(), "limitations")
+                && askYesNo("Add an injury or physical limitation?")) {
             profile.addLimit(readNonEmpty("Describe the limitation (e.g. Knee injury): "));
         }
-        while (askYesNo("Add an exercise you like?")) {
+        while (hasRoom(profile.getExercisePreferences(), "exercise preferences")
+                && askYesNo("Add an exercise you like?")) {
             profile.addExercisePreference(readNonEmpty("Exercise name: "));
         }
 
@@ -121,7 +125,8 @@ public class ConsoleUI {
             if (!profile.getPreferredWorkoutDays().contains(day)) {
                 continue;
             }
-            String group = readNonEmpty("Which muscle group on " + day + "? (e.g. Chest): ");
+            String group = readMuscleGroup("Which muscle group on " + day + "? ("
+                    + String.join(", ", WorkoutPlanner.MUSCLE_GROUPS) + "): ", null);
 
             if (!schedule.addWorkoutDay(day, group)) {
                 System.out.println(day + " is already scheduled. Skipping.");
@@ -239,9 +244,20 @@ public class ConsoleUI {
     // Input methods (each one loops until the input is valid)
     // ------------------------------------------------------------------
 
-    /** Reads and returns the user's fitness goal. Empty input re-prompts. */
+    /**
+     * Reads and returns the user's fitness goal. Anything that is not one of
+     * Profile.FITNESS_GOALS re-prompts.
+     */
     public String readFitnessGoal() {
-        return readNonEmpty("What is your fitness goal? (e.g. Strength, Muscle Gain): ");
+        String options = String.join(", ", Profile.FITNESS_GOALS);
+        while (true) {
+            String line = readNonEmpty("What is your fitness goal? (" + options + "): ");
+            String goal = Profile.normalizeGoal(line);
+            if (goal != null) {
+                return goal;
+            }
+            System.out.println("Response should be one of: " + options + ".");
+        }
     }
 
     /** Reads and returns the number of workout days per week (1-7). */
@@ -267,13 +283,16 @@ public class ConsoleUI {
             String line = prompt("How many minutes should each workout last? ");
             try {
                 int minutes = Integer.parseInt(line);
-                if (minutes > 0) {
+                if (minutes >= Profile.MIN_DURATION_MINUTES
+                        && minutes <= Profile.MAX_DURATION_MINUTES) {
                     return minutes;
                 }
-                System.out.println("Response should be a positive number of minutes.");
             } catch (NumberFormatException e) {
-                System.out.println("Response should be a number.");
+                // letters, decimals, or a number too big for an int
             }
+            System.out.println("Response should be a number between "
+                    + Profile.MIN_DURATION_MINUTES + " - " + Profile.MAX_DURATION_MINUTES
+                    + " minutes.");
         }
     }
 
@@ -381,11 +400,9 @@ public class ConsoleUI {
             return exercise;
         }
         System.out.println(name + " is not in our list, so let's add it as a custom exercise.");
-        String group = prompt("Main muscle group (press Enter for " + defaultGroup + "): ");
-        if (group.isEmpty()) {
-            group = defaultGroup;
-        }
-        String equipmentNeeded = prompt("Equipment needed (press Enter for none): ");
+        String group = readMuscleGroup("Main muscle group (press Enter for "
+                + defaultGroup + "): ", defaultGroup);
+        String equipmentNeeded = readOptional("Equipment needed (press Enter for none): ");
         int[] setsReps = planner.getSetsAndReps(profile);
         return new Exercise(name, group, null, equipmentNeeded, setsReps[0], setsReps[1]);
     }
@@ -430,14 +447,60 @@ public class ConsoleUI {
         return in.nextLine().trim();
     }
 
+    /** Reads text that is not empty and not longer than Profile.MAX_TEXT_LENGTH. */
     private String readNonEmpty(String message) {
         while (true) {
             String line = prompt(message);
-            if (!line.isEmpty()) {
+            if (line.isEmpty()) {
+                System.out.println("Response cannot be empty.");
+            } else if (line.length() > Profile.MAX_TEXT_LENGTH) {
+                System.out.println("Response must be " + Profile.MAX_TEXT_LENGTH
+                        + " characters or fewer.");
+            } else {
                 return line;
             }
-            System.out.println("Response cannot be empty.");
         }
+    }
+
+    /** Like readNonEmpty, but pressing Enter returns an empty string. */
+    private String readOptional(String message) {
+        while (true) {
+            String line = prompt(message);
+            if (line.length() <= Profile.MAX_TEXT_LENGTH) {
+                return line;
+            }
+            System.out.println("Response must be " + Profile.MAX_TEXT_LENGTH
+                    + " characters or fewer.");
+        }
+    }
+
+    /**
+     * Reads one of WorkoutPlanner.MUSCLE_GROUPS. If defaultGroup is not null,
+     * pressing Enter returns it.
+     */
+    private String readMuscleGroup(String message, String defaultGroup) {
+        while (true) {
+            String line = prompt(message);
+            if (line.isEmpty() && defaultGroup != null) {
+                return defaultGroup;
+            }
+            String group = WorkoutPlanner.normalizeMuscleGroup(line);
+            if (group != null) {
+                return group;
+            }
+            System.out.println("Response should be one of: "
+                    + String.join(", ", WorkoutPlanner.MUSCLE_GROUPS) + ".");
+        }
+    }
+
+    /** Returns false (with a message) once the list has reached its limit. */
+    private boolean hasRoom(Collection<String> list, String what) {
+        if (list.size() < Profile.MAX_LIST_SIZE) {
+            return true;
+        }
+        System.out.println("You have reached the limit of " + Profile.MAX_LIST_SIZE
+                + " " + what + ".");
+        return false;
     }
 
     private boolean askYesNo(String question) {

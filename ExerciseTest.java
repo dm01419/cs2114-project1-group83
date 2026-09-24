@@ -94,6 +94,36 @@ class ExerciseTest {
     }
 
     @Test
+    void setsAndRepsLimitsAreEnforced() {
+        bench.setSets(Exercise.MAX_SETS);
+        bench.setReps(Exercise.MAX_REPS);
+        assertEquals(10, bench.getSets());
+        assertEquals(50, bench.getReps());
+        assertThrows(IllegalArgumentException.class, () -> bench.setSets(11));
+        assertThrows(IllegalArgumentException.class, () -> bench.setReps(51));
+        assertThrows(IllegalArgumentException.class, () -> bench.setReps(50000));
+        assertEquals(10, bench.getSets());
+        assertEquals(50, bench.getReps());
+        assertThrows(IllegalArgumentException.class,
+                () -> new Exercise("Row", "Back", null, null, 3, 500));
+    }
+
+    @Test
+    void textLongerThanLimitIsRejected() {
+        String tooLong = "x".repeat(Exercise.MAX_TEXT_LENGTH + 1);
+        String max = "x".repeat(Exercise.MAX_TEXT_LENGTH);
+        assertEquals(max, new Exercise(max, "Chest", null, null, 3, 10).getName());
+        assertThrows(IllegalArgumentException.class,
+                () -> new Exercise(tooLong, "Chest", null, null, 3, 10));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Exercise("Row", tooLong, null, null, 3, 10));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Exercise("Row", "Back", tooLong, null, 3, 10));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Exercise("Row", "Back", null, tooLong, 3, 10));
+    }
+
+    @Test
     void addConflictingLimitationIgnoresBlanksAndDuplicates() {
         assertTrue(bench.addConflictingLimitation(" Shoulder "));
         assertFalse(bench.addConflictingLimitation("shoulder"));
